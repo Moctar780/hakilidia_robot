@@ -1,0 +1,240 @@
+.ai-stage {
+  width: var(--ai-stage-width);
+  min-width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: #f7f4ff;
+  border-left: 1px solid #d8d0ef;
+  color: #272038;
+  overflow: hidden;
+}
+
+.ai-stage__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ai-stage__header strong,
+.ai-stage__header span {
+  display: block;
+}
+
+.ai-stage__header span {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #5a526d;
+}
+
+.ai-stage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.ai-stage__actions button {
+  border: 0;
+  border-radius: 14px;
+  padding: 6px 10px;
+  background: #5b38c8;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ai-stage__actions button:disabled {
+  background: #aaa1c7;
+  cursor: not-allowed;
+}
+
+.ai-stage__camera-controls {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #d8d0ef;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.ai-stage__camera-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4b435d;
+}
+
+.ai-stage__camera-controls select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #c9bedf;
+  border-radius: 10px;
+  padding: 6px 8px;
+  background: white;
+  color: #272038;
+}
+
+.ai-stage__camera-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-stage__camera-buttons button {
+  border: 1px solid #c9bedf;
+  border-radius: 12px;
+  padding: 6px 9px;
+  background: white;
+  color: #3f3270;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ai-stage__camera-buttons button:disabled {
+  color: #9087a8;
+  cursor: not-allowed;
+  background: #f0edf7;
+}
+
+.ai-stage__camera-error {
+  color: #a32323;
+  font-size: 12px;
+}
+
+.ai-stage__scene {
+  position: relative;
+  height: 240px;
+  overflow: hidden;
+  border: 2px solid #d8d0ef;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(240, 235, 255, 0.92)),
+    radial-gradient(circle at 20% 20%, #ffffff, transparent 34%);
+}
+
+.ai-stage__camera,
+.ai-stage__camera-placeholder {
+  position: absolute;
+  inset: 10px;
+  width: calc(100% - 20px);
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #20173a;
+}
+
+.ai-stage__camera-placeholder {
+  display: grid;
+  place-items: center;
+  color: #d8d0ef;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+}
+
+.ai-stage__camera-placeholder small {
+  display: block;
+  margin-top: 6px;
+  max-width: 220px;
+  color: #b9acd5;
+  font-size: 11px;
+}
+
+.ai-stage__sprite {
+  position: absolute;
+  left: 140px;
+  bottom: 26px;
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff, #d9e5ff);
+  border: 2px solid #7559d8;
+  box-shadow: 0 8px 20px rgba(37, 19, 91, 0.22);
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+.ai-stage__sprite span {
+  font-weight: 800;
+  color: #5632c4;
+}
+
+.ai-stage__bubble {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #d8d0ef;
+  font-size: 12px;
+  box-shadow: 0 4px 10px rgba(37, 19, 91, 0.12);
+}
+
+.ai-stage__status {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #4b435d;
+}
+
+.ai-stage__logs {
+  flex: 1;
+  min-height: 90px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 12px;
+  background: #20173a;
+  color: #e9e2ff;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1100px) {
+  .ai-stage {
+    border-top: 1px solid #d8d0ef;
+    border-left: 0;
+  }
+
+  .ai-stage__scene {
+    height: 100%;
+    min-height: 180px;
+  }
+
+  .ai-stage__logs {
+    max-height: 110px;
+  }
+}
+
+@media (max-width: 760px) {
+  .ai-stage {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .ai-stage__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-stage__actions {
+    justify-content: flex-start;
+  }
+
+  .ai-stage__scene {
+    min-height: 160px;
+  }
+
+  .ai-stage__logs {
+    max-height: 80px;
+  }
+}

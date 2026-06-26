@@ -1,0 +1,95 @@
+@import '/blockly-static/css/font_awesome_all.min.css';
+
+:root {
+  --color-primary: #006468;
+  --color-primary-light: #17a1a5;
+  --color-accent: #ffcc00;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-background: #eeeeee;
+  --color-serial-green: rgba(29, 147, 47, 1);
+  --color-reset-red: #ff0000;
+  --color-modal-ok: #4caf50;
+  --color-code-bg: #1e1e1e;
+  --color-code-text: #d4d4d4;
+  --color-disabled: #f3f1ef;
+  --color-overlay: rgba(0, 0, 0, 0.4);
+
+  --header-height: 30px;
+  --toolbar-height: 36px;
+  --bottom-bar-height: 28px;
+  --serial-min-height: 80px;
+  --code-panel-min: 100px;
+  --blocks-min: 120px;
+  --separator-width: 15px;
+  --ai-stage-width: 360px;
+  --side-panel-min: 320px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  background: var(--color-background);
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Toggle switch (éditeur lecture seule) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  border-radius: 22px;
+  transition: 0.2s;
+}
+
+.slider::before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.switch input:checked + .slider {
+  background-color: var(--color-primary);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}

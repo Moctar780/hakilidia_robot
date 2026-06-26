@@ -1,0 +1,10 @@
+.serial-console {
+  margin: 0;
+  padding: 8px;
+  background: #000;
+  color: var(--color-serial-green);
+  font-family: monospace;
+  font-size: 12px;
+  overflow: auto;
+  min-height: var(--serial-min-height);
+}

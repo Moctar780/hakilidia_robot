@@ -1,0 +1,27 @@
+export {
+  AI_SERVICE_DEFAULT_URL,
+  ARDUINO_SERVICE_DEFAULT_URL,
+  BLOCKLY_WORKSPACE_URL,
+  BOARDS,
+  DEFAULT_AI_PROJECT,
+  DEFAULT_AI_SPRITE,
+  DEFAULT_AI_USER,
+  DEFAULT_CODE,
+  boardById,
+  createAiClient,
+  createStorageAdapter,
+} from '@blocklyduino/shared';
+export type {
+  AiClient,
+  AiDetectionKind,
+  AiDetectionResult,
+  AiInferenceRequest,
+  AiProject,
+  AiRuntimeEvent,
+  AiSprite,
+  AiUser,
+  Board,
+  PortInfo,
+  SparkiCommandResponse,
+  StorageAdapter,
+} from '@blocklyduino/shared';

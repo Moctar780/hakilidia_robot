@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>BlocklyDuino Workspace</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #f9f9f9;
+    }
+    #blocklyDiv {
+      position: absolute;
+      inset: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="blocklyDiv"></div>
+
+  <script src="./@blockly/blockly_compressed.js"></script>
+  <script src="./@blockly/blocks_compressed.js"></script>
+  <script src="./@blockly/closure/goog/base.js"></script>
+  <script src="./@blockly/demos/code/code.js"></script>
+  <script src="./blocklyduino/toolbox/toolbox_standard.json"></script>
+  <script src="./blocklyduino/toolbox/toolbox_arduino.json"></script>
+  <script src="./blocklyduino/toolbox/toolbox_ds18b20.json"></script>
+  <script src="./blocklyduino/toolbox/toolbox_grove.json"></script>
+  <script src="./blocklyduino/toolbox/toolbox_relay.json"></script>
+  <script src="./blocklyduino/toolbox/toolbox_servo.json"></script>
+  <script src="./js/toolbox.js"></script>
+  <script src="./js/typed_variable.js"></script>
+  <script src="./blocklyduino/js/override_toolbox.js"></script>
+  <script src="./blocklyduino/js/boards.json"></script>
+  <script src="./blocklyduino/js/boards.js"></script>
+  <script src="./generators/arduino_generator.js"></script>
+  <script src="./blocklyduino/blocks/board/board_base.js"></script>
+  <script src="./blocklyduino/blocks/board/board_serial.js"></script>
+  <script src="./blocklyduino/blocks/blockly/logic.js"></script>
+  <script src="./blocklyduino/blocks/blockly/math.js"></script>
+  <script src="./blocklyduino/blocks/ds18b20/ds18b20.js"></script>
+  <script src="./blocklyduino/blocks/grove/grove.js"></script>
+  <script src="./blocklyduino/blocks/relay/relay.js"></script>
+  <script src="./blocklyduino/blocks/servo/servo.js"></script>
+  <script src="./blocklyduino/blocks/typed_variable.js"></script>
+  <script src="./blocklyduino/arduino/blockly/colour.js"></script>
+  <script src="./blocklyduino/arduino/blockly/lists.js"></script>
+  <script src="./blocklyduino/arduino/blockly/logic.js"></script>
+  <script src="./blocklyduino/arduino/blockly/loops.js"></script>
+  <script src="./blocklyduino/arduino/blockly/math.js"></script>
+  <script src="./blocklyduino/arduino/blockly/procedures.js"></script>
+  <script src="./blocklyduino/arduino/blockly/text.js"></script>
+  <script src="./blocklyduino/arduino/board/board_base.js"></script>
+  <script src="./blocklyduino/arduino/board/board_serial.js"></script>
+  <script src="./blocklyduino/arduino/typed_variable.js"></script>
+  <script src="./blocklyduino/arduino/addon/ds18b20.js"></script>
+  <script src="./blocklyduino/arduino/addon/grove.js"></script>
+  <script src="./blocklyduino/arduino/addon/relay.js"></script>
+  <script src="./blocklyduino/arduino/addon/servo.js"></script>
+  <script src="./ai-blocks.js"></script>
+  <script src="./blocklyduino/themes/bw.js"></script>
+  <script src="./blocklyduino/themes/themes_blocks.js"></script>
+  <script src="./blocklyduino/themes/themes_categories.js"></script>
+  <script src="./blocklyduino/themes/themes_components_override.js"></script>
+  <script src="./@blockly/msg/js/fr.js"></script>
+  <script src="./@blockly/demos/code/msg/fr.js"></script>
+  <script src="./msg/UI_fr.js"></script>
+  <script src="./blocklyduino/msg/blocks_fr.js"></script>
+  <script src="./blocklyduino/msg/categories_fr.js"></script>
+  <script src="./bridge-init.js"></script>
+</body>
+</html>

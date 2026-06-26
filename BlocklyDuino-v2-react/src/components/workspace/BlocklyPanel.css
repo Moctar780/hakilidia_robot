@@ -1,0 +1,15 @@
+.blockly-panel {
+  flex: 1;
+  min-width: var(--blocks-min);
+  position: relative;
+  background: #f9f9f9;
+  overflow: hidden;
+}
+
+.blockly-panel__iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}

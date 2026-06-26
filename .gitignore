@@ -1,0 +1,9 @@
+node_modules/
+dist/
+**/dist/
+**/.blocklyduino-ai/
+blocklyduino-mobile/
+.env
+.env.*
+!.env.example
+*.log

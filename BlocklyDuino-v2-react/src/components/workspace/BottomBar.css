@@ -1,0 +1,24 @@
+.bottom-bar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  color: var(--color-white);
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.bottom-bar__compilation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.bottom-bar__info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

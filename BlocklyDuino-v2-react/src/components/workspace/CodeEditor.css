@@ -1,0 +1,36 @@
+.code-editor {
+  position: relative;
+  min-width: var(--code-panel-min);
+  background: var(--color-code-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.code-editor__copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+}
+
+.code-editor__textarea {
+  flex: 1;
+  width: 100%;
+  border: none;
+  resize: none;
+  padding: 40px 12px 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-code-text);
+  background: var(--color-code-bg);
+  box-sizing: border-box;
+}
+
+.code-editor__textarea:focus {
+  outline: none;
+}
+
+.code-editor__textarea[readonly] {
+  opacity: 0.85;
+}
