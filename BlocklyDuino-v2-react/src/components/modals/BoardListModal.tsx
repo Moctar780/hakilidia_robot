@@ -14,7 +14,7 @@ export function BoardListModal() {
     <div className="modal-overlay" onClick={() => setActiveModal(null)} role="presentation">
       <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <header className="modal__header">
-          <i className="fas fa-microchip" aria-hidden />
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
           <span>Sélection de la carte</span>
           <button type="button" className="modal__close" onClick={() => setActiveModal(null)}>
             ×

@@ -12,12 +12,14 @@
     "dev:web": "npm run sync-blockly && npm run dev -w blocklyduino-v2-react",
     "dev:ai": "npm run dev -w @blocklyduino/ai-service",
     "dev:service": "npm run dev -w @blocklyduino/arduino-service",
+    "dev:sensors": "npm run dev -w @blocklyduino/sensor-service",
     "build:shared": "npm run build -w @blocklyduino/shared",
     "build:blockly-static": "npm run sync-blockly",
     "build:web": "npm run build -w blocklyduino-v2-react",
     "build:ai": "npm run build -w @blocklyduino/ai-service",
     "build:service": "npm run build -w @blocklyduino/arduino-service",
-    "build:all": "npm run build:shared && npm run build:blockly-static && npm run build:web && npm run build:ai && npm run build:service",
+    "build:sensors": "npm run build -w @blocklyduino/sensor-service",
+    "build:all": "npm run build:shared && npm run build:blockly-static && npm run build:web && npm run build:ai && npm run build:service && npm run build:sensors",
     "lint": "npm run lint -w blocklyduino-v2-react"
   },
   "devDependencies": {

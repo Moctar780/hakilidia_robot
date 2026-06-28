@@ -5,13 +5,22 @@ import {
   BOARDS,
   DEFAULT_AI_PROJECT,
   DEFAULT_CODE,
+  PHONE_SENSOR_SERVICE_DEFAULT_URL,
+  SENSAGRAM_DEFAULT_HOST,
   boardById,
   createAiClient,
+  createSensagramClient,
   createStorageAdapter,
+  normalizeDetectionResult,
   type AiDetectionResult,
   type AiInferenceRequest,
   type AiProject,
   type AiSprite,
+  type PhoneControlRequest,
+  type PhoneControlResponse,
+  type PhoneSensorReading,
+  type PhoneSensorStatus,
+  type PhoneSensorsResponse,
   type PortInfo,
   type SparkiCommandResponse,
 } from '../constants';
@@ -52,12 +61,28 @@ type AppContextValue = {
   aiServiceUrl: string;
   setAiServiceUrl: (url: string) => void;
   aiServiceConnected: boolean;
+  phoneServiceUrl: string;
+  setPhoneServiceUrl: (url: string) => void;
+  phoneHost: string;
+  setPhoneHost: (host: string) => void;
+  phoneConnected: boolean;
+  phoneStatus: PhoneSensorStatus | null;
+  lastPhoneSensors: PhoneSensorReading[];
+  refreshPhoneStatus: (host?: string) => Promise<PhoneSensorStatus>;
+  configurePhoneSensors: (request: PhoneControlRequest) => Promise<PhoneControlResponse>;
+  readPhoneSensors: () => Promise<PhoneSensorsResponse>;
+  readPhoneSensor: (type: string) => Promise<PhoneSensorReading | null>;
+  startPhoneUdp: () => Promise<void>;
+  stopPhoneUdp: () => Promise<void>;
+  getPhoneCameraFrame: () => Promise<string>;
+  phoneCameraStreamUrl: string;
   sprites: AiSprite[];
   setSprites: (sprites: AiSprite[] | ((prev: AiSprite[]) => AiSprite[])) => void;
   lastDetection: AiDetectionResult | null;
   setLastDetection: (result: AiDetectionResult | null) => void;
   runtimeStatus: 'idle' | 'running' | 'stopped' | 'error';
   setRuntimeStatus: (status: AppContextValue['runtimeStatus']) => void;
+  stopAiProgram: () => void;
   runtimeLogs: string[];
   appendRuntimeLog: (message: string) => void;
   clearRuntimeLogs: () => void;
@@ -93,6 +118,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [aiProject, setAiProject] = useState<AiProject>(DEFAULT_AI_PROJECT);
   const [aiServiceUrl, setAiServiceUrl] = useState(AI_SERVICE_DEFAULT_URL);
   const [aiServiceConnected, setAiServiceConnected] = useState(false);
+  const [phoneServiceUrl, setPhoneServiceUrl] = useState(PHONE_SENSOR_SERVICE_DEFAULT_URL);
+  const [phoneHost, setPhoneHost] = useState(SENSAGRAM_DEFAULT_HOST);
+  const [phoneConnected, setPhoneConnected] = useState(false);
+  const [phoneStatus, setPhoneStatus] = useState<PhoneSensorStatus | null>(null);
+  const [lastPhoneSensors, setLastPhoneSensors] = useState<PhoneSensorReading[]>([]);
   const [sprites, setSprites] = useState<AiSprite[]>(DEFAULT_AI_PROJECT.sprites);
   const [lastDetection, setLastDetection] = useState<AiDetectionResult | null>(null);
   const [runtimeStatus, setRuntimeStatus] = useState<AppContextValue['runtimeStatus']>('idle');
@@ -112,12 +142,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [blockly, setBlocklyActions] = useState<BlocklyActions | null>(null);
   const storage = useMemo(() => createStorageAdapter(window.localStorage), []);
   const aiClient = useMemo(() => createAiClient(aiServiceUrl), [aiServiceUrl]);
+  const phoneClient = useMemo(() => createSensagramClient(phoneServiceUrl), [phoneServiceUrl]);
 
   const appendRuntimeLog = useCallback((message: string) => {
     setRuntimeLogs((prev) => [...prev.slice(-80), `[${new Date().toLocaleTimeString()}] ${message}`]);
   }, []);
 
   const clearRuntimeLogs = useCallback(() => setRuntimeLogs([]), []);
+
+  const stopAiProgram = useCallback(() => {
+    setRuntimeStatus('stopped');
+    appendRuntimeLog('Arrêt demandé.');
+  }, [appendRuntimeLog]);
 
   useEffect(() => {
     const wsUrl = `${serviceUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/events`;
@@ -167,7 +203,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (event.type === 'serviceStatus') {
         setAiServiceConnected(event.connected);
       } else if (event.type === 'inferenceResult') {
-        setLastDetection(event.result);
+        /* lastDetection est déjà mis à jour par inferWithAi() — le WebSocket
+         * ne fait que logger pour éviter les écritures concurrentes. */
         appendRuntimeLog(`IA: ${event.result.label} (${Math.round(event.result.confidence * 100)} %)`);
       } else if (event.type === 'projectSaved') {
         appendRuntimeLog(`Projet synchronisé: ${event.project.name}`);
@@ -180,6 +217,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     socket.onerror = () => setAiServiceConnected(false);
     return () => socket.close();
   }, [aiClient, appendRuntimeLog]);
+
+  useEffect(() => {
+    const socket = phoneClient.connectEvents((event) => {
+      if (event.type === 'phoneStatus') {
+        setPhoneConnected(event.connected);
+        if (event.status) {
+          setPhoneStatus(event.status);
+        }
+        if (event.error) {
+          appendRuntimeLog(`Téléphone: ${event.error}`);
+        }
+      } else if (event.type === 'phoneSensorData') {
+        setLastPhoneSensors((prev) => [event.reading, ...prev.filter((item) => item.type !== event.reading.type)].slice(0, 20));
+      } else if (event.type === 'phoneLog') {
+        appendRuntimeLog(event.message);
+      }
+    });
+    socket.onopen = () => setPhoneConnected(true);
+    socket.onclose = () => setPhoneConnected(false);
+    socket.onerror = () => setPhoneConnected(false);
+    return () => socket.close();
+  }, [appendRuntimeLog, phoneClient]);
 
   const selectedBoardLabel = useMemo(
     () => BOARDS.find((b) => b.id === selectedBoardId)?.label ?? '...',
@@ -302,13 +361,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const inferWithAi = useCallback(
     async (request: AiInferenceRequest) => {
-      const result = await aiClient.infer(request);
+      const result = normalizeDetectionResult(await aiClient.infer(request));
       setAiServiceConnected(true);
       setLastDetection(result);
       return result;
     },
     [aiClient],
   );
+
+  const refreshPhoneStatus = useCallback(async (host?: string) => {
+    const targetHost = host?.trim() || phoneHost;
+    if (targetHost !== phoneHost) {
+      setPhoneHost(targetHost);
+    }
+    const status = await phoneClient.status(targetHost);
+    setPhoneConnected(true);
+    setPhoneStatus(status);
+    appendRuntimeLog(`Téléphone SensaGram joignable: ${status.dashboardUrl ?? status.baseUrl}`);
+    return status;
+  }, [appendRuntimeLog, phoneClient, phoneHost]);
+
+  const configurePhoneSensors = useCallback(
+    async (request: PhoneControlRequest) => {
+      const response = await phoneClient.control({ phoneHost, ...request });
+      setPhoneConnected(response.ok);
+      if (response.status) {
+        setPhoneStatus(response.status);
+      }
+      appendRuntimeLog(response.ok ? 'Capteurs téléphone configurés.' : `Téléphone: ${response.error ?? 'configuration échouée'}`);
+      return response;
+    },
+    [appendRuntimeLog, phoneClient, phoneHost],
+  );
+
+  const readPhoneSensors = useCallback(async () => {
+    const response = await phoneClient.sensors(phoneHost);
+    setPhoneConnected(true);
+    setLastPhoneSensors(response.readings);
+    appendRuntimeLog(`${response.readings.length} lecture(s) téléphone reçue(s).`);
+    return response;
+  }, [appendRuntimeLog, phoneClient, phoneHost]);
+
+  const readPhoneSensor = useCallback(
+    async (type: string) => {
+      const normalizedType = type.toLowerCase();
+      const response =
+        normalizedType.includes('gps') || normalizedType === 'android.gps'
+          ? await phoneClient.gps(phoneHost)
+          : normalizedType.includes('micro')
+            ? await phoneClient.microphone(phoneHost)
+            : await phoneClient.sensors(phoneHost);
+      setPhoneConnected(true);
+      setLastPhoneSensors(response.readings);
+      return response.readings.find((reading) => reading.type === type || reading.type.toLowerCase().includes(normalizedType)) ?? null;
+    },
+    [phoneClient, phoneHost],
+  );
+
+  const startPhoneUdp = useCallback(async () => {
+    const result = await phoneClient.startUdp({ phoneHost });
+    setPhoneConnected(true);
+    appendRuntimeLog(`UDP téléphone actif sur ${result.ports.join(', ')}.`);
+  }, [appendRuntimeLog, phoneClient, phoneHost]);
+
+  const stopPhoneUdp = useCallback(async () => {
+    await phoneClient.stopUdp();
+    appendRuntimeLog('UDP téléphone arrêté.');
+  }, [appendRuntimeLog, phoneClient]);
+
+  const getPhoneCameraFrame = useCallback(async () => phoneClient.cameraSnapshotDataUrl(phoneHost), [phoneClient, phoneHost]);
+
+  const phoneCameraStreamUrl = useMemo(() => phoneClient.cameraStreamUrl(phoneHost), [phoneClient, phoneHost]);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -320,12 +443,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       aiServiceUrl,
       setAiServiceUrl,
       aiServiceConnected,
+      phoneServiceUrl,
+      setPhoneServiceUrl,
+      phoneHost,
+      setPhoneHost,
+      phoneConnected,
+      phoneStatus,
+      lastPhoneSensors,
+      refreshPhoneStatus,
+      configurePhoneSensors,
+      readPhoneSensors,
+      readPhoneSensor,
+      startPhoneUdp,
+      stopPhoneUdp,
+      getPhoneCameraFrame,
+      phoneCameraStreamUrl,
       sprites,
       setSprites,
       lastDetection,
       setLastDetection,
       runtimeStatus,
       setRuntimeStatus,
+      stopAiProgram,
       runtimeLogs,
       appendRuntimeLog,
       clearRuntimeLogs,
@@ -367,9 +506,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       aiProject,
       aiServiceUrl,
       aiServiceConnected,
+      phoneServiceUrl,
+      phoneHost,
+      phoneConnected,
+      phoneStatus,
+      lastPhoneSensors,
+      refreshPhoneStatus,
+      configurePhoneSensors,
+      readPhoneSensors,
+      readPhoneSensor,
+      startPhoneUdp,
+      stopPhoneUdp,
+      getPhoneCameraFrame,
+      phoneCameraStreamUrl,
       sprites,
       lastDetection,
       runtimeStatus,
+      stopAiProgram,
       runtimeLogs,
       appendRuntimeLog,
       clearRuntimeLogs,

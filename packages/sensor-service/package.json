@@ -1,5 +1,5 @@
 {
-  "name": "@blocklyduino/ai-service",
+  "name": "@blocklyduino/sensor-service",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,6 @@
   "dependencies": {
     "@blocklyduino/shared": "file:../shared",
     "express": "^5.2.1",
-    "sharp": "^0.35.2",
     "ws": "^8.18.3"
   },
   "devDependencies": {

@@ -1,10 +1,10 @@
 export const colors = {
-  primary: '#006468',
-  primaryLight: '#17a1a5',
+  primary: '#007f83',
+  primaryLight: '#0aa5a9',
   accent: '#FFCC00',
   white: '#FFFFFF',
   black: '#000000',
-  background: '#EEEEEE',
+  background: '#eef4f5',
   serialGreen: 'rgba(29, 147, 47, 1)',
   resetRed: '#FF0000',
   modalOk: '#4CAF50',
@@ -15,15 +15,15 @@ export const colors = {
 };
 
 export const sizes = {
-  headerHeight: 30,
+  headerHeight: 38,
   toolbarHeight: 36,
-  bottomBarHeight: 28,
+  bottomBarHeight: 30,
   serialMinHeight: 80,
   codePanelMin: 100,
   blocksMin: 120,
   separatorWidth: 15,
-  aiStageWidth: 360,
-  sidePanelMin: 320,
+  aiStageWidth: 320,
+  sidePanelMin: 292,
   sideCodeMinHeight: 130,
   sideAiMinHeight: 180,
 };

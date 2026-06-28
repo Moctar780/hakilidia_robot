@@ -12,13 +12,13 @@ type Props = {
 
 export function ResizeHandle({ orientation, onDragStart, onDrag, onDragEnd, children, className = '' }: Props) {
   const dragging = useRef(false);
-  const lastPos = useRef(0);
+  const startPos = useRef(0);
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent) => {
       onDragStart?.();
       dragging.current = true;
-      lastPos.current = orientation === 'horizontal' ? event.clientX : event.clientY;
+      startPos.current = orientation === 'horizontal' ? event.clientX : event.clientY;
       event.currentTarget.setPointerCapture(event.pointerId);
     },
     [onDragStart, orientation],
@@ -30,8 +30,7 @@ export function ResizeHandle({ orientation, onDragStart, onDrag, onDragEnd, chil
         return;
       }
       const pos = orientation === 'horizontal' ? event.clientX : event.clientY;
-      const delta = pos - lastPos.current;
-      lastPos.current = pos;
+      const delta = pos - startPos.current;
       onDrag(delta);
     },
     [onDrag, orientation],

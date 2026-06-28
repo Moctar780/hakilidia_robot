@@ -1,37 +1,40 @@
 .icon-button {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
-  margin: 0 1px;
+  margin: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-primary);
-  color: var(--color-white);
+  border-radius: 5px;
+  background: transparent;
+  color: #007f83;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .icon-button:hover:not(:disabled) {
-  background: var(--color-white);
+  background: #eaf7f8;
   color: var(--color-primary);
 }
 
 .icon-button--active {
-  background: var(--color-accent);
+  background: #daf4f5;
   color: var(--color-primary);
 }
 
 .icon-button--round {
-  border-radius: 16px;
+  border-radius: 999px;
 }
 
 .icon-button--danger {
   background: var(--color-reset-red);
+  color: var(--color-white);
 }
 
 .icon-button--help {
   background: var(--color-primary-light);
+  color: var(--color-white);
 }
 
 .icon-button:disabled {

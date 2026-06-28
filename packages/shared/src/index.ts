@@ -91,6 +91,8 @@ export type ServiceEvent =
 
 export const ARDUINO_SERVICE_DEFAULT_URL = 'http://127.0.0.1:8080';
 export const AI_SERVICE_DEFAULT_URL = 'http://127.0.0.1:8090';
+export const PHONE_SENSOR_SERVICE_DEFAULT_URL = 'http://127.0.0.1:8070';
+export const SENSAGRAM_DEFAULT_HOST = '192.168.43.1';
 export const BLOCKLY_WORKSPACE_URL = '/blockly-static/workspace.html';
 
 export type AiSprite = {
@@ -121,13 +123,25 @@ export type AiProject = {
   updatedAt: string;
 };
 
-export type AiDetectionKind = 'face' | 'object' | 'gender';
+export type AiDetectionKind = 'face' | 'object' | 'gender' | 'line';
+
+export type AiDetectionBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label?: string;
+  confidence?: number;
+};
 
 export type AiDetectionResult = {
   kind: AiDetectionKind;
   label: string;
   confidence: number;
   at: string;
+  box?: AiDetectionBox;
+  /** Décalage horizontal normalisé (-1 gauche … +1 droite), utilisé pour le suivi de ligne. */
+  offset?: number;
 };
 
 export type AiInferenceRequest = {
@@ -135,11 +149,128 @@ export type AiInferenceRequest = {
   imageDataUrl?: string;
 };
 
+/** Conserve uniquement les vraies boîtes renvoyées par l'inférence ; n'en invente jamais. */
+export function normalizeDetectionResult(result: AiDetectionResult): AiDetectionResult {
+  if (result.confidence <= 0 || result.label.startsWith('aucun')) {
+    const { box: _removed, ...withoutBox } = result;
+    return withoutBox;
+  }
+  return result;
+}
+
 export type AiRuntimeEvent =
   | { type: 'serviceStatus'; connected: boolean }
   | { type: 'projectSaved'; project: AiProject }
   | { type: 'inferenceResult'; result: AiDetectionResult }
   | { type: 'runtimeLog'; message: string };
+
+export type PhoneCameraResolution = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export type PhoneSensorEndpoint = {
+  id: string;
+  name?: string;
+  category?: string;
+  enabled?: boolean;
+  streaming?: boolean;
+  port?: number;
+  hasData?: boolean;
+  api?: string;
+  resolution?: PhoneCameraResolution;
+  width?: number;
+  height?: number;
+  intervalMs?: number;
+};
+
+export type PhoneSensorStatus = {
+  ok: boolean;
+  phoneHost: string;
+  baseUrl: string;
+  streaming?: boolean;
+  localIp?: string;
+  localHttpPort?: number;
+  dashboardUrl?: string;
+  endpoints: PhoneSensorEndpoint[];
+  ports: Record<string, number>;
+  at: string;
+  raw?: unknown;
+};
+
+export type PhoneSensorReading = {
+  type: string;
+  timestamp?: number;
+  values?: number[];
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
+  bearing?: number;
+  accuracy?: number;
+  speed?: number;
+  time?: number;
+  rms?: number;
+  peak?: number;
+  at?: string;
+  raw?: unknown;
+};
+
+export type PhoneGpsReading = PhoneSensorReading & {
+  type: 'android.gps' | string;
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
+  bearing?: number;
+  accuracy?: number;
+  speed?: number;
+  time?: number;
+};
+
+export type PhoneMicrophoneReading = PhoneSensorReading & {
+  type: 'android.microphone.level' | string;
+  rms?: number;
+  peak?: number;
+};
+
+export type PhoneCameraConfig = {
+  enabled: boolean;
+  streaming?: boolean;
+  intervalMs?: number;
+  resolution?: PhoneCameraResolution;
+  snapshotUrl?: string;
+  streamUrl?: string;
+};
+
+export type PhoneSensorsResponse = {
+  readings: PhoneSensorReading[];
+  at: string;
+  raw?: unknown;
+};
+
+export type PhoneControlRequest = {
+  phoneHost?: string;
+  sensors?: string[];
+  endpoints?: Record<string, boolean>;
+  gps?: boolean;
+  micro?: boolean;
+  camera?: boolean;
+  streaming?: boolean | 'start' | 'stop';
+  cameraIntervalMs?: number;
+  cameraResolution?: PhoneCameraResolution;
+};
+
+export type PhoneControlResponse = {
+  ok: boolean;
+  status?: PhoneSensorStatus;
+  error?: string;
+};
+
+export type PhoneUdpControlRequest = {
+  phoneHost?: string;
+  ports?: number[];
+};
+
+export type PhoneRuntimeEvent =
+  | { type: 'phoneStatus'; connected: boolean; status?: PhoneSensorStatus; error?: string }
+  | { type: 'phoneSensorData'; reading: PhoneSensorReading; port?: number; at: string }
+  | { type: 'phoneLog'; message: string };
 
 export const DEFAULT_AI_SPRITE: AiSprite = {
   id: 'sprite-robot',
@@ -177,5 +308,7 @@ export { createArduinoClient } from './arduinoClient.js';
 export type { ArduinoClient } from './arduinoClient.js';
 export { createAiClient } from './aiClient.js';
 export type { AiClient } from './aiClient.js';
+export { createSensagramClient } from './sensagramClient.js';
+export type { SensagramClient } from './sensagramClient.js';
 export { createStorageAdapter } from './persistence.js';
 export type { StorageAdapter } from './persistence.js';

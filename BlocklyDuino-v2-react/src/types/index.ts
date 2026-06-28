@@ -7,6 +7,8 @@ export type {
   AiRuntimeEvent,
   AiSprite,
   CompileRequest,
+  PhoneSensorReading,
+  PhoneSensorStatus,
   PortInfo,
   ServiceEvent,
 } from '@blocklyduino/shared';

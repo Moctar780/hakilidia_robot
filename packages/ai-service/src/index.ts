@@ -15,6 +15,7 @@ import type {
   AiUser,
 } from '@blocklyduino/shared';
 import { DEFAULT_AI_PROJECT, DEFAULT_AI_USER } from '@blocklyduino/shared';
+import { validateImage } from './validate.js';
 
 const PORT = Number(process.env.BLOCKLYDUINO_AI_SERVICE_PORT ?? 8090);
 const HOST = process.env.BLOCKLYDUINO_AI_SERVICE_HOST ?? '127.0.0.1';
@@ -42,7 +43,7 @@ function broadcast(event: AiRuntimeEvent) {
   const payload = JSON.stringify(event);
   for (const client of wss.clients) {
     if (client.readyState === client.OPEN) {
-      client.send(payload);
+      client.send(payload, () => undefined);
     }
   }
 }
@@ -90,43 +91,63 @@ function normalizeProject(project: AiProject): AiProject {
 }
 
 function heuristicInference(kind: AiDetectionKind): AiDetectionResult {
-  const labels: Record<AiDetectionKind, string[]> = {
+  if (kind === 'line') {
+    console.log('[heuristicInference] Suivi de ligne: service IA indisponible, arrêt de sécurité.');
+    return {
+      kind,
+      label: 'perdue',
+      confidence: 0,
+      offset: 0,
+      at: new Date().toISOString(),
+    };
+  }
+
+  const labels: Record<Exclude<AiDetectionKind, 'line'>, string[]> = {
     face: ['visage detecte', 'aucun visage', 'visage proche'],
     object: ['robot', 'main', 'carte Arduino', 'objet inconnu'],
     gender: ['personne', 'profil non determine'],
   };
-  const pool = labels[kind] ?? labels.object;
+  const pool = labels[kind as Exclude<AiDetectionKind, 'line'>] ?? labels.object;
   const label = pool[Math.floor(Math.random() * pool.length)] ?? 'objet inconnu';
+  const confidence = Number((0.72 + Math.random() * 0.25).toFixed(2));
   return {
     kind,
     label,
-    confidence: Number((0.72 + Math.random() * 0.25).toFixed(2)),
+    confidence,
     at: new Date().toISOString(),
   };
 }
 
-function yoloScriptPath() {
+function resolveScriptPath(envVar: string | undefined, filename: string, label: string) {
   const candidates = [
-    process.env.BLOCKLYDUINO_YOLO_SCRIPT,
-    path.join(__dirname, 'yolo_infer.py'),
-    path.join(process.cwd(), 'src', 'yolo_infer.py'),
-    path.join(process.cwd(), 'packages', 'ai-service', 'src', 'yolo_infer.py'),
+    envVar,
+    path.join(__dirname, filename),
+    path.join(process.cwd(), 'src', filename),
+    path.join(process.cwd(), 'packages', 'ai-service', 'src', filename),
   ].filter(Boolean) as string[];
   const script = candidates.find((candidate) => existsSync(candidate));
   if (!script) {
-    throw new Error('Script YOLO introuvable.');
+    throw new Error(`Script ${label} introuvable.`);
   }
   return script;
 }
 
-function runYoloInference(request: AiInferenceRequest): Promise<AiDetectionResult> {
+function yoloScriptPath() {
+  return resolveScriptPath(process.env.BLOCKLYDUINO_YOLO_SCRIPT, 'yolo_infer.py', 'YOLO');
+}
+
+function lineScriptPath() {
+  return resolveScriptPath(process.env.BLOCKLYDUINO_LINE_SCRIPT, 'line_follow.py', 'suivi de ligne');
+}
+
+function runPythonInference(scriptPath: string, request: AiInferenceRequest): Promise<AiDetectionResult> {
   return new Promise((resolve, reject) => {
     if (!request.imageDataUrl) {
       reject(new Error('Aucune image caméra à analyser.'));
       return;
     }
 
-    const child = spawn(PYTHON_BIN, [yoloScriptPath()], {
+    const child = spawn(PYTHON_BIN, [scriptPath], {
       env: { ...process.env, PYTHONUNBUFFERED: '1' },
       shell: false,
     });
@@ -134,7 +155,7 @@ function runYoloInference(request: AiInferenceRequest): Promise<AiDetectionResul
     let stderr = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      reject(new Error(`YOLO a dépassé ${YOLO_TIMEOUT_MS} ms.`));
+      reject(new Error(`Inférence Python a dépassé ${YOLO_TIMEOUT_MS} ms.`));
     }, YOLO_TIMEOUT_MS);
 
     child.stdout.on('data', (chunk) => {
@@ -150,21 +171,32 @@ function runYoloInference(request: AiInferenceRequest): Promise<AiDetectionResul
     child.on('close', (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        reject(new Error(stderr || `YOLO terminé avec le code ${code}.`));
+        reject(new Error(stderr || `Script Python terminé avec le code ${code}.`));
         return;
       }
       try {
         const lines = stdout.trim().split('\n').filter(Boolean);
         const payload = lines[lines.length - 1];
         if (!payload) {
-          throw new Error('Réponse YOLO vide.');
+          throw new Error('Réponse Python vide.');
         }
         resolve(JSON.parse(payload) as AiDetectionResult);
       } catch (error) {
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
-    child.stdin.end(JSON.stringify(request));
+    if (child.stdin) {
+      child.stdin.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code !== 'EPIPE') {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
+      child.stdin.end(JSON.stringify(request));
+    } else {
+      clearTimeout(timer);
+      reject(new Error('Entrée Python indisponible.'));
+    }
   });
 }
 
@@ -172,11 +204,21 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'blocklyduino-ai-service',
+    python: PYTHON_BIN,
     yolo: {
-      python: PYTHON_BIN,
       scriptAvailable: (() => {
         try {
           yoloScriptPath();
+          return true;
+        } catch {
+          return false;
+        }
+      })(),
+    },
+    lineFollow: {
+      scriptAvailable: (() => {
+        try {
+          lineScriptPath();
           return true;
         } catch {
           return false;
@@ -241,16 +283,30 @@ app.put('/projects/:id', async (req, res) => {
 app.post('/ai/infer', async (req, res) => {
   const body = req.body as AiInferenceRequest;
   const kind = body.kind ?? 'object';
-  if (body.imageDataUrl && body.imageDataUrl.length > 3_500_000) {
-    res.status(413).send('Image trop volumineuse pour le service IA.');
-    return;
+
+  // Validation de l'image avant toute tentative d'inférence
+  if (body.imageDataUrl) {
+    if (body.imageDataUrl.length > 3_500_000) {
+      res.status(413).send('Image trop volumineuse pour le service IA.');
+      return;
+    }
+    try {
+      await validateImage(body.imageDataUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(400).send(`Image invalide: ${message}`);
+      return;
+    }
   }
+
   let result: AiDetectionResult;
+  const scriptPath = kind === 'line' ? lineScriptPath() : yoloScriptPath();
   try {
-    result = await runYoloInference({ ...body, kind });
+    result = await runPythonInference(scriptPath, { ...body, kind });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    broadcast({ type: 'runtimeLog', message: `YOLO indisponible, fallback simulé: ${message}` });
+    const engine = kind === 'line' ? 'Suivi de ligne' : 'YOLO';
+    broadcast({ type: 'runtimeLog', message: `${engine} indisponible, fallback simulé: ${message}` });
     result = heuristicInference(kind);
   }
   broadcast({ type: 'inferenceResult', result });
@@ -258,6 +314,7 @@ app.post('/ai/infer', async (req, res) => {
 });
 
 wss.on('connection', (socket) => {
+  socket.on('error', () => undefined);
   socket.send(JSON.stringify({ type: 'serviceStatus', connected: true } satisfies AiRuntimeEvent));
 });
 

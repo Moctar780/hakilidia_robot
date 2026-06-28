@@ -1,4 +1,4 @@
-import type { AiDetectionResult, AiDetectionKind, AiSprite } from '../constants';
+import type { AiDetectionResult, AiDetectionKind, AiSprite, PhoneControlRequest, PhoneSensorReading } from '../constants';
 
 export type RuntimeContext = {
   openCamera: () => Promise<void>;
@@ -6,12 +6,19 @@ export type RuntimeContext = {
   detect: (kind: AiDetectionKind) => Promise<AiDetectionResult>;
   updateSprite: (updater: (sprite: AiSprite) => AiSprite) => void;
   sendRobotCommand?: (command: string, expectReply?: boolean) => Promise<unknown>;
+  connectPhone?: (host?: string) => Promise<unknown>;
+  configurePhoneSensors?: (request: PhoneControlRequest) => Promise<unknown>;
+  readPhoneSensor?: (type: string) => Promise<PhoneSensorReading | null>;
+  startPhoneUdp?: () => Promise<void>;
+  stopPhoneUdp?: () => Promise<void>;
+  usePhoneCamera?: (enabled: boolean) => void;
+  openCameraPreview?: () => void;
   say: (message: string) => void;
   log: (message: string) => void;
   shouldStop: () => boolean;
 };
 
-const COMMAND_PATTERN = /(?:AI|ROBOT)_([A-Z_]+)\((.*)\);?/;
+const COMMAND_PATTERN = /(AI|ROBOT|PHONE)_([A-Z_]+)\((.*)\);?/;
 const MAX_LOOP_ITERATIONS = 100;
 
 function parseArgs(raw: string) {
@@ -40,10 +47,41 @@ async function sendRobot(context: RuntimeContext, command: string, expectReply =
   }
 }
 
+function readingSummary(reading: PhoneSensorReading | null) {
+  if (!reading) {
+    return 'aucune donnée';
+  }
+  if (reading.values?.length) {
+    return reading.values.map((value) => Number(value).toFixed(2)).join(', ');
+  }
+  if (typeof reading.latitude === 'number' && typeof reading.longitude === 'number') {
+    return `${reading.latitude.toFixed(5)}, ${reading.longitude.toFixed(5)}`;
+  }
+  if (typeof reading.rms === 'number' || typeof reading.peak === 'number') {
+    return `rms=${(reading.rms ?? 0).toFixed(2)}, peak=${(reading.peak ?? 0).toFixed(2)}`;
+  }
+  return reading.type;
+}
+
+async function readPhone(context: RuntimeContext, type: string) {
+  if (!context.readPhoneSensor) {
+    context.log('Lecture téléphone indisponible.');
+    return null;
+  }
+  try {
+    const reading = await context.readPhoneSensor(type);
+    context.log(`Téléphone ${type}: ${readingSummary(reading)}`);
+    return reading;
+  } catch (error) {
+    context.log(`Téléphone ${type} indisponible: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
 function countExecutableCommands(lines: string[]) {
   return lines.filter((line) => {
     const trimmed = line.trim();
-    return trimmed.startsWith('AI_') || trimmed.startsWith('ROBOT_');
+    return trimmed.startsWith('AI_') || trimmed.startsWith('ROBOT_') || trimmed.startsWith('PHONE_');
   }).length;
 }
 
@@ -101,11 +139,95 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     return;
   }
 
-  const [, command, rawArgs = ''] = match;
+  const [, domain, command, rawArgs = ''] = match;
   const args = parseArgs(rawArgs);
+
+  if (domain === 'PHONE') {
+    if (command === 'CONNECT') {
+      await context.connectPhone?.(args[0]);
+      context.log(args[0] ? `Téléphone configuré: ${args[0]}` : 'Téléphone connecté.');
+    } else if (command === 'ACTIVATE') {
+      const sensors = (args[0] || 'android.sensor.accelerometer,android.sensor.gyroscope')
+        .split('|')
+        .map((sensor) => sensor.trim())
+        .filter(Boolean);
+      await context.configurePhoneSensors?.({
+        sensors,
+        gps: true,
+        micro: true,
+        camera: true,
+        streaming: 'start',
+        cameraResolution: 'LOW',
+        cameraIntervalMs: 100,
+      });
+      context.log('Flux téléphone activés.');
+    } else if (command === 'READ_ACCELEROMETER') {
+      await readPhone(context, 'android.sensor.accelerometer');
+    } else if (command === 'READ_GYROSCOPE') {
+      await readPhone(context, 'android.sensor.gyroscope');
+    } else if (command === 'READ_GPS') {
+      await readPhone(context, 'android.gps');
+    } else if (command === 'READ_MICROPHONE') {
+      await readPhone(context, 'android.microphone.level');
+    } else if (command === 'USE_CAMERA') {
+      context.usePhoneCamera?.(true);
+      context.log('Caméra téléphone utilisée pour la détection IA.');
+    } else if (command === 'CAMERA_WINDOW_OPEN') {
+      context.openCameraPreview?.();
+      context.log('Fenêtre caméra ouverte.');
+    } else if (command === 'VISION_START') {
+      await context.configurePhoneSensors?.({
+        sensors: ['android.sensor.accelerometer', 'android.sensor.gyroscope'],
+        gps: false,
+        micro: false,
+        camera: true,
+        streaming: 'start',
+        cameraResolution: 'LOW',
+        cameraIntervalMs: 100,
+      });
+      context.usePhoneCamera?.(true);
+      context.openCameraPreview?.();
+      context.log('Vision téléphone prête.');
+    } else if (command === 'USE_LOCAL_CAMERA') {
+      context.usePhoneCamera?.(false);
+      context.log('Caméra locale utilisée pour la détection IA.');
+    } else if (command === 'UDP_START') {
+      await context.startPhoneUdp?.();
+    } else if (command === 'UDP_STOP') {
+      await context.stopPhoneUdp?.();
+    } else if (command === 'DRIVE_TILT') {
+      const threshold = Number(args[0] || 2);
+      const reading = await readPhone(context, 'android.sensor.accelerometer');
+      const [x = 0, y = 0] = reading?.values ?? [];
+      if (Math.abs(y) > Math.abs(x) && Math.abs(y) >= threshold) {
+        await sendRobot(context, y < 0 ? 'F 10' : 'B 10');
+        context.log(y < 0 ? 'Inclinaison: robot avance.' : 'Inclinaison: robot recule.');
+      } else if (Math.abs(x) >= threshold) {
+        await sendRobot(context, x < 0 ? 'TL 20' : 'TR 20');
+        context.log(x < 0 ? 'Inclinaison: robot tourne à gauche.' : 'Inclinaison: robot tourne à droite.');
+      } else {
+        await sendRobot(context, 's', false);
+        context.log('Inclinaison faible: robot arrêté.');
+      }
+    } else if (command === 'STOP_ON_NOISE') {
+      const threshold = Number(args[0] || 0.35);
+      const reading = await readPhone(context, 'android.microphone.level');
+      const level = Math.max(reading?.rms ?? 0, reading?.peak ?? 0);
+      if (level >= threshold) {
+        await sendRobot(context, 's', false);
+        context.log(`Bruit ${level.toFixed(2)} >= ${threshold}: robot arrêté.`);
+      } else {
+        context.log(`Bruit ${level.toFixed(2)} < ${threshold}: aucune action.`);
+      }
+    } else {
+      context.log(`Commande téléphone inconnue: ${command}`);
+    }
+    return;
+  }
 
   if (command === 'CAMERA_OPEN') {
     await context.openCamera();
+    context.openCameraPreview?.();
     context.log('Caméra ouverte.');
   } else if (command === 'CAMERA_CLOSE') {
     context.closeCamera();
@@ -113,7 +235,26 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
   } else if (command === 'DETECT') {
     const kind = (args[0] || 'object') as AiDetectionKind;
     const result = await context.detect(kind);
-    context.say(`${result.label} (${Math.round(result.confidence * 100)} %)`);
+    const offsetText = typeof result.offset === 'number' ? `, offset ${result.offset.toFixed(2)}` : '';
+    context.say(`${result.label} (${Math.round(result.confidence * 100)} %${offsetText})`);
+  } else if (command === 'FOLLOW_LINE') {
+    const forwardSteps = Number(args[0] || 10);
+    const turnDegrees = Number(args[1] || 15);
+    const result = await context.detect('line');
+    const offset = result.offset ?? 0;
+    if (result.label === 'perdue' || result.confidence < 0.05) {
+      await sendRobot(context, 's', false);
+      context.log('Ligne perdue: robot arrêté.');
+    } else if (offset < -0.12 || result.label === 'gauche') {
+      await sendRobot(context, `TL ${turnDegrees}`, false);
+      context.log(`Ligne à gauche (offset ${offset.toFixed(2)}): tourner à gauche.`);
+    } else if (offset > 0.12 || result.label === 'droite') {
+      await sendRobot(context, `TR ${turnDegrees}`, false);
+      context.log(`Ligne à droite (offset ${offset.toFixed(2)}): tourner à droite.`);
+    } else {
+      await sendRobot(context, `F ${forwardSteps}`, false);
+      context.log(`Ligne centrée (offset ${offset.toFixed(2)}): avancer.`);
+    }
   } else if (command === 'SPRITE_MOVE') {
     const steps = Number(args[0] || 10);
     context.updateSprite((sprite) => ({ ...sprite, x: sprite.x + steps }));
@@ -203,7 +344,7 @@ async function executeLines(lines: string[], context: RuntimeContext, start = 0,
       continue;
     }
 
-    if (line.startsWith('AI_') || line.startsWith('ROBOT_')) {
+    if (line.startsWith('AI_') || line.startsWith('ROBOT_') || line.startsWith('PHONE_')) {
       await executeCommand(line, context);
     }
   }
@@ -212,7 +353,7 @@ async function executeLines(lines: string[], context: RuntimeContext, start = 0,
 export async function runAiProgram(code: string, context: RuntimeContext) {
   const lines = code.split('\n');
   if (countExecutableCommands(lines) === 0) {
-    context.log('Aucune commande IA ou Robot trouvée. Ajoute des blocs des catégories IA ou Robot.');
+    context.log('Aucune commande IA, Robot ou Téléphone trouvée. Ajoute des blocs des catégories IA, Robot ou Capteurs téléphone.');
     return;
   }
 

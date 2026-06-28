@@ -80,7 +80,7 @@
     },
 
     customToolboxes: function () {
-      return [window.BLOCKLY_AI_TOOLBOX, window.BLOCKLY_ROBOT_TOOLBOX].filter(Boolean);
+      return [window.BLOCKLY_AI_TOOLBOX, window.BLOCKLY_ROBOT_TOOLBOX, window.BLOCKLY_PHONE_TOOLBOX].filter(Boolean);
     },
 
     extendToolbox: function (toolbox) {

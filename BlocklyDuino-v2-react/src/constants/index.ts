@@ -7,9 +7,13 @@ export {
   DEFAULT_AI_SPRITE,
   DEFAULT_AI_USER,
   DEFAULT_CODE,
+  PHONE_SENSOR_SERVICE_DEFAULT_URL,
+  SENSAGRAM_DEFAULT_HOST,
   boardById,
   createAiClient,
+  createSensagramClient,
   createStorageAdapter,
+  normalizeDetectionResult,
 } from '@blocklyduino/shared';
 export type {
   AiClient,
@@ -22,6 +26,12 @@ export type {
   AiUser,
   Board,
   PortInfo,
+  PhoneControlRequest,
+  PhoneControlResponse,
+  PhoneRuntimeEvent,
+  PhoneSensorReading,
+  PhoneSensorStatus,
+  PhoneSensorsResponse,
   SparkiCommandResponse,
   StorageAdapter,
 } from '@blocklyduino/shared';

@@ -1,10 +1,51 @@
 .serial-console {
+  display: flex;
+  flex-direction: column;
   margin: 0;
-  padding: 8px;
-  background: #000;
-  color: var(--color-serial-green);
-  font-family: monospace;
-  font-size: 12px;
-  overflow: auto;
+  padding: 0 14px 10px;
+  background: #eef4f5;
+  color: #244246;
   min-height: var(--serial-min-height);
+}
+
+.serial-console__header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border: 1px solid #d8e5e6;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: #ffffff;
+  color: #007f83;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.serial-console__header button {
+  border: 1px solid #d8e5e6;
+  border-radius: 5px;
+  padding: 4px 8px;
+  background: #ffffff;
+  color: #536a6f;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.serial-console__output {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid #d8e5e6;
+  border-radius: 0 0 10px 10px;
+  background: #ffffff;
+  color: #667b80;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
 }

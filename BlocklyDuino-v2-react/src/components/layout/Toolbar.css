@@ -1,9 +1,11 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   height: var(--toolbar-height);
-  background: var(--color-primary);
-  padding: 0 4px;
+  background: #ffffff;
+  padding: 0 8px;
+  border-bottom: 1px solid #d9e6e7;
+  box-shadow: 0 1px 4px rgba(0, 76, 79, 0.08);
   overflow-x: auto;
 }

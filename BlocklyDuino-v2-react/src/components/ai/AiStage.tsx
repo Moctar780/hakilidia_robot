@@ -5,26 +5,61 @@ import type { AiDetectionKind, AiDetectionResult } from '../../constants';
 import './AiStage.css';
 
 function fallbackDetection(kind: AiDetectionKind): AiDetectionResult {
+  if (kind === 'line') {
+    return {
+      kind,
+      label: 'centre',
+      confidence: 0.5,
+      offset: 0,
+      at: new Date().toISOString(),
+    };
+  }
+  const label = kind === 'face' ? 'visage detecte' : kind === 'gender' ? 'personne' : 'robot';
   return {
     kind,
-    label: kind === 'face' ? 'visage detecte' : kind === 'gender' ? 'personne' : 'robot',
+    label,
     confidence: 0.76,
     at: new Date().toISOString(),
   };
 }
 
+function DetectionBox({ result }: { result: AiDetectionResult | null }) {
+  if (!result?.box || result.confidence <= 0) {
+    return null;
+  }
+  const box = result.box;
+  return (
+    <div
+      className="ai-stage__detection-box"
+      style={{
+        left: `${box.x * 100}%`,
+        top: `${box.y * 100}%`,
+        width: `${box.width * 100}%`,
+        height: `${box.height * 100}%`,
+      }}
+    >
+      <span>
+        {box.label ?? result.label} {Math.round((box.confidence ?? result.confidence) * 100)}%
+      </span>
+    </div>
+  );
+}
+
 export function AiStage() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stopRequested = useRef(false);
+  const [overlayDetectionKind, setOverlayDetectionKind] = useState<AiDetectionKind | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [cameraError, setCameraError] = useState('');
-  const [speech, setSpeech] = useState('Prêt à exécuter les blocs IA.');
+  const [usePhoneCamera, setUsePhoneCamera] = useState(false);
+  const [cameraPreviewOpen, setCameraPreviewOpen] = useState(false);
+  const [, setSpeech] = useState('Prêt à exécuter les blocs IA.');
   const {
     generatedCode,
-    sprites,
     setSprites,
     lastDetection,
     setLastDetection,
@@ -35,11 +70,22 @@ export function AiStage() {
     clearRuntimeLogs,
     inferWithAi,
     aiServiceConnected,
+    phoneHost,
+    setPhoneHost,
+    phoneConnected,
+    phoneStatus,
+    lastPhoneSensors,
+    refreshPhoneStatus,
+    configurePhoneSensors,
+    readPhoneSensors,
+    readPhoneSensor,
+    startPhoneUdp,
+    stopPhoneUdp,
+    getPhoneCameraFrame,
+    phoneCameraStreamUrl,
     saveAiProject,
     sendSparkiCommand,
   } = useApp();
-
-  const sprite = sprites[0];
 
   const refreshCameraDevices = async () => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -53,11 +99,14 @@ export function AiStage() {
   };
 
   useEffect(() => {
-    refreshCameraDevices().catch((error) => {
-      setCameraError(error instanceof Error ? error.message : String(error));
-    });
+    const timer = window.setTimeout(() => {
+      refreshCameraDevices().catch((error) => {
+        setCameraError(error instanceof Error ? error.message : String(error));
+      });
+    }, 0);
     navigator.mediaDevices?.addEventListener?.('devicechange', refreshCameraDevices);
     return () => {
+      window.clearTimeout(timer);
       navigator.mediaDevices?.removeEventListener?.('devicechange', refreshCameraDevices);
     };
   }, []);
@@ -66,7 +115,10 @@ export function AiStage() {
     if (videoRef.current && cameraStream) {
       videoRef.current.srcObject = cameraStream;
     }
-  }, [cameraStream]);
+    if (previewVideoRef.current && cameraStream) {
+      previewVideoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraPreviewOpen, cameraStream]);
 
   useEffect(
     () => () => {
@@ -121,10 +173,37 @@ export function AiStage() {
     }
   };
 
+  const findReadyVideo = () =>
+    [videoRef.current, previewVideoRef.current].find((node) => node && node.videoWidth > 0);
+
+  const waitForVideoReady = async (timeoutMs = 3000): Promise<boolean> => {
+    if (findReadyVideo()) {
+      return true;
+    }
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        if (findReadyVideo()) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - start >= timeoutMs) {
+          resolve(false);
+          return;
+        }
+        setTimeout(check, 100);
+      };
+      check();
+    });
+  };
+
   const captureFrame = () => {
-    const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth) {
+    if (!canvas) {
+      return undefined;
+    }
+    const video = findReadyVideo();
+    if (!video) {
       return undefined;
     }
     canvas.width = video.videoWidth;
@@ -134,10 +213,19 @@ export function AiStage() {
   };
 
   const detect = async (kind: AiDetectionKind) => {
-    const imageDataUrl = captureFrame();
+    setOverlayDetectionKind(kind);
+    const imageDataUrl = usePhoneCamera
+      ? await getPhoneCameraFrame()
+      : (await waitForVideoReady()) && captureFrame();
+    if (!imageDataUrl) {
+      appendRuntimeLog(`Détection ${kind}: aucune image disponible.`);
+      const result = fallbackDetection(kind);
+      setLastDetection(result);
+      return result;
+    }
     try {
       const result = await inferWithAi({ kind, imageDataUrl });
-      setLastDetection(result);
+      // inferWithAi normalise déjà le résultat et met à jour lastDetection
       appendRuntimeLog(`Détection ${kind}: ${result.label}`);
       return result;
     } catch {
@@ -147,6 +235,49 @@ export function AiStage() {
       return result;
     }
   };
+
+  useEffect(() => {
+    if (!cameraPreviewOpen) {
+      return;
+    }
+    if (!overlayDetectionKind || overlayDetectionKind === 'line') {
+      return;
+    }
+    const kind = overlayDetectionKind;
+    let cancelled = false;
+    const refreshOverlay = async () => {
+      if (cancelled || stopRequested.current) {
+        return;
+      }
+      const imageDataUrl = usePhoneCamera
+        ? await getPhoneCameraFrame()
+        : (await waitForVideoReady(1500)) && captureFrame();
+      if (!imageDataUrl || cancelled) {
+        return;
+      }
+      try {
+        // inferWithAi normalise déjà le résultat et met à jour lastDetection
+        await inferWithAi({ kind, imageDataUrl });
+      } catch {
+        if (!cancelled) {
+          setLastDetection(fallbackDetection(kind));
+        }
+      }
+    };
+    void refreshOverlay();
+    const timer = window.setInterval(refreshOverlay, 900);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [cameraPreviewOpen, overlayDetectionKind, usePhoneCamera, cameraStream, phoneConnected, getPhoneCameraFrame, inferWithAi, setLastDetection]);
+
+  // Réagit aux arrêts externes (Header, RightPanel, raccourcis clavier)
+  useEffect(() => {
+    if (runtimeStatus === 'stopped') {
+      stopRequested.current = true;
+    }
+  }, [runtimeStatus]);
 
   const runProgram = async () => {
     stopRequested.current = false;
@@ -165,6 +296,13 @@ export function AiStage() {
           });
         },
         sendRobotCommand: sendSparkiCommand,
+        connectPhone: refreshPhoneStatus,
+        configurePhoneSensors,
+        readPhoneSensor,
+        startPhoneUdp,
+        stopPhoneUdp,
+        usePhoneCamera: setUsePhoneCamera,
+        openCameraPreview: () => setCameraPreviewOpen(true),
         say: setSpeech,
         log: appendRuntimeLog,
         shouldStop: () => stopRequested.current,
@@ -178,9 +316,20 @@ export function AiStage() {
 
   const stopProgram = () => {
     stopRequested.current = true;
+    setOverlayDetectionKind(null);
     setRuntimeStatus('stopped');
     appendRuntimeLog('Arrêt demandé.');
   };
+
+  useEffect(() => {
+    const handleGlobalRun = () => {
+      if (runtimeStatus !== 'running') {
+        void runProgram();
+      }
+    };
+    window.addEventListener('blocklyduino:run-ai-program', handleGlobalRun);
+    return () => window.removeEventListener('blocklyduino:run-ai-program', handleGlobalRun);
+  }, [runtimeStatus, runProgram]);
 
   return (
     <aside className="ai-stage">
@@ -190,16 +339,21 @@ export function AiStage() {
           <span>{aiServiceConnected ? 'Service IA connecté' : 'Mode local/simulé'}</span>
         </div>
         <div className="ai-stage__actions">
-          <button type="button" onClick={runProgram} disabled={runtimeStatus === 'running'}>
+          <button type="button" className="ai-stage__action ai-stage__action--run" onClick={runProgram} disabled={runtimeStatus === 'running'}>
             Exécuter
           </button>
-          <button type="button" onClick={stopProgram}>
+          <button type="button" className="ai-stage__action ai-stage__action--stop" onClick={stopProgram}>
             Arrêter
           </button>
-          <button type="button" onClick={saveAiProject}>
+          <button type="button" className="ai-stage__action ai-stage__action--save" onClick={saveAiProject}>
             Sauvegarder
           </button>
         </div>
+      </div>
+
+      <div className="ai-stage__connection">
+        <span className={aiServiceConnected ? 'ai-stage__dot ai-stage__dot--online' : 'ai-stage__dot'} />
+        {aiServiceConnected ? 'Service IA connecté' : 'Service IA local'}
       </div>
 
       <div className="ai-stage__camera-controls">
@@ -231,32 +385,71 @@ export function AiStage() {
           >
             Rafraîchir
           </button>
+          <button type="button" onClick={() => setCameraPreviewOpen(true)}>
+            Fenêtre caméra
+          </button>
         </div>
         {cameraError && <span className="ai-stage__camera-error">{cameraError}</span>}
       </div>
 
-      <div className="ai-stage__scene">
-        <video ref={videoRef} className="ai-stage__camera" autoPlay playsInline muted />
-        {!cameraStream && (
-          <div className="ai-stage__camera-placeholder">
-            <span>Caméra fermée</span>
-            <small>Choisis une source puis clique sur “Ouvrir caméra”.</small>
-          </div>
-        )}
-        {sprite && (
-          <div
-            className="ai-stage__sprite"
-            style={{
-              transform: `translate(${sprite.x}px, ${sprite.y}px) rotate(${sprite.direction - 90}deg) scale(${sprite.size / 100})`,
-            }}
-            aria-label={sprite.name}
+      <div className="ai-stage__phone-controls">
+        <label>
+          Téléphone SensaGram
+          <input value={phoneHost} onChange={(event) => setPhoneHost(event.target.value)} placeholder="192.168.43.1" />
+        </label>
+        <div className="ai-stage__camera-buttons">
+          <button
+            type="button"
+            onClick={() =>
+              refreshPhoneStatus().catch((error) => appendRuntimeLog(`Téléphone indisponible: ${error instanceof Error ? error.message : String(error)}`))
+            }
           >
-            <span>AI</span>
-          </div>
-        )}
-        <div className="ai-stage__bubble">{speech}</div>
+            Tester
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              configurePhoneSensors({
+                sensors: ['android.sensor.accelerometer', 'android.sensor.gyroscope'],
+                gps: true,
+                micro: true,
+                camera: true,
+                streaming: 'start',
+                cameraResolution: 'LOW',
+                cameraIntervalMs: 100,
+              }).catch((error) => appendRuntimeLog(`Configuration téléphone échouée: ${error instanceof Error ? error.message : String(error)}`))
+            }
+          >
+            Activer
+          </button>
+          <button
+            type="button"
+            onClick={() => readPhoneSensors().catch((error) => appendRuntimeLog(`Lecture téléphone échouée: ${error instanceof Error ? error.message : String(error)}`))}
+          >
+            Lire
+          </button>
+          <button type="button" onClick={() => setUsePhoneCamera((enabled) => !enabled)}>
+            {usePhoneCamera ? 'Caméra locale' : 'Caméra téléphone'}
+          </button>
+          <button type="button" onClick={() => setCameraPreviewOpen(true)}>
+            Fenêtre caméra
+          </button>
+        </div>
+        <div className="ai-stage__camera-buttons">
+          <button type="button" onClick={() => startPhoneUdp().catch((error) => appendRuntimeLog(`UDP téléphone échoué: ${error instanceof Error ? error.message : String(error)}`))}>
+            UDP on
+          </button>
+          <button type="button" onClick={() => stopPhoneUdp().catch((error) => appendRuntimeLog(`Arrêt UDP échoué: ${error instanceof Error ? error.message : String(error)}`))}>
+            UDP off
+          </button>
+        </div>
+        <span className={phoneConnected ? 'ai-stage__phone-ok' : 'ai-stage__camera-error'}>
+          {phoneConnected ? `Connecté ${phoneStatus?.dashboardUrl ?? phoneHost}` : 'Téléphone non connecté'}
+        </span>
+        {lastPhoneSensors[0] && <span className="ai-stage__phone-reading">Dernier capteur: {lastPhoneSensors[0].type}</span>}
       </div>
 
+      <video ref={videoRef} hidden autoPlay playsInline muted />
       <canvas ref={canvasRef} hidden />
 
       <div className="ai-stage__status">
@@ -267,6 +460,43 @@ export function AiStage() {
       </div>
 
       <pre className="ai-stage__logs">{runtimeLogs.join('\n')}</pre>
+
+      {cameraPreviewOpen && (
+        <div className="ai-stage__camera-window" role="dialog" aria-modal="true" aria-label="Fenêtre caméra">
+          <div className="ai-stage__camera-window-panel">
+            <div className="ai-stage__camera-window-header">
+              <div>
+                <strong>{usePhoneCamera ? 'Caméra téléphone' : 'Caméra locale'}</strong>
+                <span>{usePhoneCamera ? (phoneConnected ? phoneHost : 'Téléphone non connecté') : selectedCameraId ? 'Webcam sélectionnée' : 'Webcam par défaut'}</span>
+              </div>
+              <button type="button" onClick={() => setCameraPreviewOpen(false)}>
+                Fermer
+              </button>
+            </div>
+            <div className="ai-stage__camera-window-body">
+              {usePhoneCamera && phoneConnected ? (
+                <div className="ai-stage__camera-window-frame">
+                  <img src={phoneCameraStreamUrl} alt="Images de la caméra téléphone" />
+                  <div className="ai-stage__camera-window-overlay">
+                    <DetectionBox result={lastDetection} />
+                  </div>
+                </div>
+              ) : !usePhoneCamera && cameraStream ? (
+                <div className="ai-stage__camera-window-frame">
+                  <video ref={previewVideoRef} autoPlay playsInline muted />
+                  <div className="ai-stage__camera-window-overlay">
+                    <DetectionBox result={lastDetection} />
+                  </div>
+                </div>
+              ) : (
+                <div className="ai-stage__camera-window-empty">
+                  <span>{usePhoneCamera ? 'Connecte d’abord SensaGram avec Tester puis Activer.' : 'Ouvre d’abord la caméra locale.'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

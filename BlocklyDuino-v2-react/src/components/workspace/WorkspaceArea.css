@@ -4,6 +4,7 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  background: #eef4f5;
 }
 
 .workspace-area__top {
@@ -18,8 +19,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #f7f4ff;
-  border-left: 1px solid #d8d0ef;
+  background: #f4f8f8;
+  border-left: 1px solid #d8e5e6;
   overflow: hidden;
 }
 
@@ -28,10 +29,10 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 10px;
-  color: #272038;
-  background: #eee8ff;
-  border-bottom: 1px solid #d8d0ef;
+  padding: 12px 16px 10px;
+  color: #243c3f;
+  background: #f8fbfb;
+  border-bottom: 1px solid #d8e5e6;
 }
 
 .workspace-area__side-header strong,
@@ -40,8 +41,9 @@
 }
 
 .workspace-area__side-header span {
-  font-size: 12px;
-  color: #5a526d;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #657b80;
 }
 
 .workspace-area__side-section {
@@ -53,34 +55,39 @@
 .workspace-area__side-section--code {
   flex: 0 0 auto;
   min-height: 170px;
+  padding: 10px 14px 8px;
+  background: #f8fbfb;
 }
 
 .workspace-area__side-section--ai {
   flex: 1;
   min-height: 0;
+  padding: 0 14px 14px;
+  background: #f8fbfb;
 }
 
 .workspace-area__side-resizer {
-  height: 12px;
-  background: #d8d0ef;
-  border-top: 1px solid #c7bde8;
-  border-bottom: 1px solid #c7bde8;
+  height: 8px;
+  background: #f8fbfb;
+  border: 0;
 }
 
 .workspace-area__resize-grip {
   width: 42px;
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
-  background: #7c6eb2;
+  background: #c7d7d9;
 }
 
 .workspace-area__side-label {
   flex-shrink: 0;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #e7e7e7;
-  background: #2a2a2a;
+  padding: 0 0 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #536a6f;
+  background: transparent;
 }
 
 .workspace-area__side-panel .code-editor {
@@ -88,6 +95,9 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(14, 46, 50, 0.08);
 }
 
 .workspace-area__side-panel .ai-stage {
@@ -139,5 +149,10 @@
 
   .workspace-area__side-section--code {
     min-height: 130px;
+    padding-inline: 10px;
+  }
+
+  .workspace-area__side-section--ai {
+    padding-inline: 10px;
   }
 }

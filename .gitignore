@@ -7,3 +7,5 @@ blocklyduino-mobile/
 .env.*
 !.env.example
 *.log
+__pycache__/
+*.pt

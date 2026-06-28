@@ -1,3 +1,4 @@
+import { HelpCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import './Modal.css';
 
@@ -13,7 +14,7 @@ export function HelpModal() {
     <div className="modal-overlay" onClick={() => setActiveModal(null)} role="presentation">
       <div className="modal modal--help" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <header className="modal__header">
-          <i className="fas fa-question" aria-hidden />
+          <HelpCircle size={18} />
           <span>Aide BlocklyDuino</span>
           <button type="button" className="modal__close" onClick={() => setActiveModal(null)}>
             ×
