@@ -41,6 +41,7 @@ export type BlocklyCommand =
   | { command: 'setTheme'; theme: string }
   | { command: 'setRenderer'; renderer: string }
   | { command: 'toggleCategory'; categoryId: string; enabled: boolean }
+  | { command: 'addBlock'; blockType: string; x?: number; y?: number }
   | { command: 'setRenderingConstant'; value: number }
   | { command: 'setAccessibility'; enabled: boolean }
   | { command: 'newProject' };

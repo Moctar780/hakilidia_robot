@@ -39,6 +39,7 @@ type BlocklyActions = {
   setTheme: (theme: string) => void;
   setRenderer: (renderer: string) => void;
   toggleCategory: (categoryId: string, enabled: boolean) => void;
+  addBlock: (blockType: string, x?: number, y?: number) => void;
   setRenderingConstant: (value: number) => void;
   setAccessibility: (enabled: boolean) => void;
 };

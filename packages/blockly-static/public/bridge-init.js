@@ -146,7 +146,7 @@
         readOnly: false,
         rtl: false,
         move: { scrollbars: true, drag: true, wheel: false },
-        toolbox: this.buildToolbox(),
+        toolbox: { kind: 'categoryToolbox', contents: [] },
         toolboxPosition: 'start',
         renderer: this.state.renderer,
         theme: getTheme(this.state.theme),
@@ -274,6 +274,17 @@
             this.state.disabledCategories[data.categoryId] = !data.enabled;
             if (this.workspace && this.workspace.updateToolbox) {
               this.workspace.updateToolbox(this.buildToolbox());
+            }
+            break;
+          case 'addBlock':
+            if (this.workspace && data.blockType) {
+              try {
+                var xml = '<xml><block type="' + data.blockType + '" x="' + (data.x || 100) + '" y="' + (data.y || 100) + '"/></xml>';
+                var dom = Blockly.Xml.textToDom(xml);
+                Blockly.Xml.domToWorkspace(dom, this.workspace);
+              } catch (addError) {
+                reportError(addError);
+              }
             }
             break;
           case 'setRenderingConstant':

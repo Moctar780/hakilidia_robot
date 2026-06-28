@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Search, ChevronDown, SplitSquareHorizontal, Repeat, Calculator, Type, List, Palette, Variable, FunctionSquare, Cpu, Waves, Thermometer, Cable, Zap, Camera, Bot, Smartphone, Eye, EyeOff } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, SplitSquareHorizontal, Repeat, Calculator, Type, List, Palette, Variable, FunctionSquare, Cpu, Waves, Thermometer, Cable, Zap, Camera, Bot, Smartphone, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { BLOCKS_BY_CATEGORY, blockTypeToLabel } from '../../constants/blocks';
 
 type Category = {
   id: string;
@@ -16,7 +17,7 @@ const categories: Category[] = [
   { id: 'LOOPS', name: 'Boucles', icon: Repeat, color: '#5CB65C', group: 'standard' },
   { id: 'MATH', name: 'Math', icon: Calculator, color: '#5B67A5', group: 'standard' },
   { id: 'TEXT', name: 'Texte', icon: Type, color: '#5BA58C', group: 'standard' },
-  { id: 'LISTS', name: 'Listes', icon: List, color: '#CC5B22', group: 'standard' },
+  { id: 'LIST', name: 'Listes', icon: List, color: '#CC5B22', group: 'standard' },
   { id: 'COLOUR', name: 'Couleur', icon: Palette, color: '#A55B5B', group: 'standard' },
   { id: 'VARIABLES', name: 'Variables', icon: Variable, color: '#A55BA5', group: 'standard' },
   { id: 'FUNCTIONS', name: 'Fonctions', icon: FunctionSquare, color: '#A56B5B', group: 'standard' },
@@ -147,6 +148,16 @@ function CategoryItem({
   onCollapse: () => void;
   showCollapse: boolean;
 }) {
+  const { blockly } = useApp();
+  const blockList = BLOCKS_BY_CATEGORY[cat.id]?.blocks ?? [];
+  const hasBlocks = blockList.length > 0;
+
+  const addBlock = (blockType: string) => {
+    if (!isDisabled) {
+      blockly?.addBlock(blockType, 100, 100);
+    }
+  };
+
   return (
     <div className="mb-0.5">
       <div className="flex items-center gap-1">
@@ -154,15 +165,13 @@ function CategoryItem({
           type="button"
           onClick={onCollapse}
           className="flex cursor-pointer items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--color-surface-alt)]"
-          style={{ color: 'var(--color-muted)', visibility: showCollapse ? 'visible' : 'hidden' }}
+          style={{ color: 'var(--color-muted)', visibility: showCollapse && hasBlocks ? 'visible' : 'hidden' }}
         >
-          <ChevronDown
-            size={12}
-            style={{
-              transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s',
-            }}
-          />
+          {collapsed ? (
+            <ChevronRight size={12} />
+          ) : (
+            <ChevronDown size={12} style={{ transition: 'transform 0.2s' }} />
+          )}
         </button>
         <button
           type="button"
@@ -177,16 +186,30 @@ function CategoryItem({
             <cat.icon size={12} />
           </div>
           <span className="flex-1 text-left">{cat.name}</span>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            className="flex cursor-pointer items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--color-surface-alt)]"
-            title={isDisabled ? 'Afficher' : 'Masquer'}
-          >
-            {isDisabled ? <EyeOff size={12} /> : <Eye size={12} />}
-          </button>
+          <span className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
+            {blockList.length}
+          </span>
         </button>
       </div>
+
+      {/* Liste des blocs de la catégorie (visible si dépliée et non masquée) */}
+      {!collapsed && !isDisabled && hasBlocks && (
+        <div className="ml-4 space-y-0.5 border-l-2 pl-2 pt-0.5" style={{ borderColor: cat.color + '40' }}>
+          {blockList.map((blockType) => (
+            <button
+              key={blockType}
+              type="button"
+              onClick={() => addBlock(blockType)}
+              className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-all hover:bg-[var(--color-surface-alt)] active:scale-[0.97]"
+              style={{ color: 'var(--color-text-secondary)' }}
+              title={`Ajouter le bloc "${blockTypeToLabel(blockType)}"`}
+            >
+              <Plus size={10} style={{ color: cat.color }} />
+              <span>{blockTypeToLabel(blockType)}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

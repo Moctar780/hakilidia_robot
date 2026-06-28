@@ -61,6 +61,8 @@ export function useBlocklyBridge(iframeRef: React.RefObject<HTMLIFrameElement | 
       setRenderer: (renderer: string) => postCommand({ command: 'setRenderer', renderer }),
       toggleCategory: (categoryId: string, enabled: boolean) =>
         postCommand({ command: 'toggleCategory', categoryId, enabled }),
+      addBlock: (blockType: string, x?: number, y?: number) =>
+        postCommand({ command: 'addBlock', blockType, x, y }),
       setRenderingConstant: (value: number) => postCommand({ command: 'setRenderingConstant', value }),
       setAccessibility: (enabled: boolean) => postCommand({ command: 'setAccessibility', enabled }),
     }),
