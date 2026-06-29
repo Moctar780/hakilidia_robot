@@ -196,19 +196,85 @@ function CategoryItem({
       {!collapsed && !isDisabled && hasBlocks && (
         <div className="ml-4 space-y-0.5 border-l-2 pl-2 pt-0.5" style={{ borderColor: cat.color + '40' }}>
           {blockList.map((blockType) => (
-            <button
+            <BlockItem
               key={blockType}
-              type="button"
-              onClick={() => addBlock(blockType)}
-              className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-all hover:bg-[var(--color-surface-alt)] active:scale-[0.97]"
-              style={{ color: 'var(--color-text-secondary)' }}
-              title={`Ajouter le bloc "${blockTypeToLabel(blockType)}"`}
-            >
-              <Plus size={10} style={{ color: cat.color }} />
-              <span>{blockTypeToLabel(blockType)}</span>
-            </button>
+              blockType={blockType}
+              catColor={cat.color}
+              onAdd={() => addBlock(blockType)}
+            />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Aperçu visuel d'un bloc Blockly (tooltip latéral) */
+function BlockPreview({ label, color }: { label: string; color: string }) {
+  return (
+    <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+      {/* Flèche gauche */}
+      <div
+        className="absolute right-full top-1/2 -mt-1 h-2 w-2 rotate-45"
+        style={{ backgroundColor: color }}
+      />
+      {/* Corps du bloc */}
+      <div
+        className="flex items-center gap-2 rounded-md px-3 py-2 shadow-xl"
+        style={{
+          backgroundColor: color,
+          borderTopLeftRadius: '4px',
+          borderBottomLeftRadius: '4px',
+          borderTopRightRadius: '8px',
+          borderBottomRightRadius: '8px',
+          minWidth: '140px',
+        }}
+      >
+        {/* Encoche gauche (style Blockly) */}
+        <div
+          className="h-3 w-2 shrink-0 rounded-r-full"
+          style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}
+        />
+        <span className="whitespace-nowrap text-xs font-semibold text-white drop-shadow-sm">
+          {label}
+        </span>
+        {/* Pastille de connexion (style Blockly) */}
+        <div
+          className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: 'rgba(255,255,255,0.35)' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BlockItem({
+  blockType,
+  catColor,
+  onAdd,
+}: {
+  blockType: string;
+  catColor: string;
+  onAdd: () => void;
+}) {
+  const label = blockTypeToLabel(blockType);
+  const [showPreview, setShowPreview] = useState(false);
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onAdd}
+        onMouseEnter={() => setShowPreview(true)}
+        onMouseLeave={() => setShowPreview(false)}
+        className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-all hover:bg-[var(--color-surface-alt)] active:scale-[0.97]"
+        style={{ color: 'var(--color-text-secondary)' }}
+      >
+        <Plus size={10} style={{ color: catColor }} />
+        <span>{label}</span>
+      </button>
+      {showPreview && (
+        <BlockPreview label={label} color={catColor} />
       )}
     </div>
   );
