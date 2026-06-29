@@ -13,6 +13,7 @@ type Options = {
 export function useBlocklyBridge(iframeRef: React.RefObject<HTMLIFrameElement | null>, options: Options) {
   const optionsRef = useRef(options);
   optionsRef.current = options;
+  const xmlResolverRef = useRef<((xml: string) => void) | null>(null);
 
   const postCommand = useCallback(
     (command: BlocklyCommand) => {
@@ -32,6 +33,11 @@ export function useBlocklyBridge(iframeRef: React.RefObject<HTMLIFrameElement | 
       } else if (data.type === 'code') {
         optionsRef.current.onCodeChange?.(data.code);
       } else if (data.type === 'xml') {
+        // Si un resolver async est en attente, le résoudre
+        if (xmlResolverRef.current) {
+          xmlResolverRef.current(data.xml);
+          xmlResolverRef.current = null;
+        }
         optionsRef.current.onXml?.(data.xml);
       } else if (data.type === 'xmlSnapshot') {
         optionsRef.current.onXmlSnapshot?.(data.xml);
@@ -53,6 +59,11 @@ export function useBlocklyBridge(iframeRef: React.RefObject<HTMLIFrameElement | 
       clear: () => postCommand({ command: 'clear' }),
       newProject: () => postCommand({ command: 'newProject' }),
       getXml: () => postCommand({ command: 'getXml' }),
+      getXmlAsync: () =>
+        new Promise<string>((resolve) => {
+          xmlResolverRef.current = resolve;
+          postCommand({ command: 'getXml' });
+        }),
       loadXml: (xml: string) => postCommand({ command: 'loadXml', xml }),
       resize: (width?: number, height?: number) => postCommand({ command: 'resize', width, height }),
       setBoard: (boardId: string) => postCommand({ command: 'setBoard', boardId }),

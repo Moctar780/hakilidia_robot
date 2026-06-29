@@ -32,6 +32,7 @@ type BlocklyActions = {
   clear: () => void;
   newProject: () => void;
   getXml: () => void;
+  getXmlAsync: () => Promise<string>;
   loadXml: (xml: string) => void;
   resize: (width?: number, height?: number) => void;
   setBoard: (boardId: string) => void;
@@ -107,6 +108,11 @@ type AppContextValue = {
   saveAiProject: () => Promise<void>;
   loadAiProject: (project: AiProject) => void;
   buildCurrentProject: () => AiProject;
+  newAiProject: () => void;
+  switchAiProject: (index: number) => Promise<void>;
+  closeAiProject: (index: number) => void;
+  projects: AiProject[];
+  activeProjectIndex: number;
   inferWithAi: (request: AiInferenceRequest) => Promise<AiDetectionResult>;
   blockly: BlocklyActions | null;
   setBlocklyActions: (actions: BlocklyActions | null) => void;
@@ -118,6 +124,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [generatedCode, setGeneratedCode] = useState(DEFAULT_CODE);
   const [workspaceXml, setWorkspaceXml] = useState('');
   const [aiProject, setAiProject] = useState<AiProject>(DEFAULT_AI_PROJECT);
+  const [projects, setProjects] = useState<AiProject[]>([{ ...DEFAULT_AI_PROJECT, id: 'project-1', name: 'Projet 1' }]);
+  const [activeProjectIndex, setActiveProjectIndex] = useState(0);
+  const [blockly, setBlocklyActions] = useState<BlocklyActions | null>(null);
+  const [sprites, setSprites] = useState<AiSprite[]>(DEFAULT_AI_PROJECT.sprites);
+
+  const newAiProject = useCallback(() => {
+    const now = new Date().toISOString();
+    const newProject: AiProject = {
+      id: `project-${Date.now()}`,
+      name: `Projet ${projects.length + 1}`,
+      workspaceXml: '',
+      runtimeCode: '',
+      sprites: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    setProjects((prev) => [...prev, newProject]);
+    setActiveProjectIndex(projects.length);
+    setAiProject(newProject);
+    setWorkspaceXml('');
+    setGeneratedCode(DEFAULT_CODE);
+    setSprites([]);
+    blockly?.newProject();
+  }, [projects.length, blockly]);
+
+  const switchAiProject = useCallback(async (index: number) => {
+    const project = projects[index];
+    if (!project || index === activeProjectIndex) return;
+    // Sauvegarder l'état du projet courant dans la liste
+    setProjects((prev) => {
+      const copy = [...prev];
+      if (copy[activeProjectIndex]) {
+        copy[activeProjectIndex] = { ...copy[activeProjectIndex], workspaceXml, runtimeCode: generatedCode };
+      }
+      return copy;
+    });
+    // Charger le nouveau projet
+    setActiveProjectIndex(index);
+    setAiProject(project);
+    setWorkspaceXml(project.workspaceXml);
+    setGeneratedCode(project.runtimeCode || DEFAULT_CODE);
+    setSprites(project.sprites);
+    if (project.workspaceXml) {
+      blockly?.loadXml(project.workspaceXml);
+    } else {
+      blockly?.newProject();
+    }
+  }, [projects, activeProjectIndex, workspaceXml, generatedCode, blockly]);
+
+  const closeAiProject = useCallback((index: number) => {
+    if (projects.length <= 1) return;
+    const newProjects = projects.filter((_, i) => i !== index);
+    const newIndex = Math.min(activeProjectIndex, newProjects.length - 1);
+    // Si l'index actif change, charger le nouveau projet
+    if (newIndex !== activeProjectIndex) {
+      const project = newProjects[newIndex];
+      setActiveProjectIndex(newIndex);
+      setAiProject(project);
+      setWorkspaceXml(project.workspaceXml);
+      setGeneratedCode(project.runtimeCode || DEFAULT_CODE);
+      setSprites(project.sprites);
+      if (project.workspaceXml) blockly?.loadXml(project.workspaceXml);
+    }
+    setProjects(newProjects);
+  }, [projects, activeProjectIndex, blockly]);
+
   const [aiServiceUrl, setAiServiceUrl] = useState(AI_SERVICE_DEFAULT_URL);
   const [aiServiceConnected, setAiServiceConnected] = useState(false);
   const [phoneServiceUrl, setPhoneServiceUrl] = useState(PHONE_SENSOR_SERVICE_DEFAULT_URL);
@@ -125,7 +197,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [phoneConnected, setPhoneConnected] = useState(false);
   const [phoneStatus, setPhoneStatus] = useState<PhoneSensorStatus | null>(null);
   const [lastPhoneSensors, setLastPhoneSensors] = useState<PhoneSensorReading[]>([]);
-  const [sprites, setSprites] = useState<AiSprite[]>(DEFAULT_AI_PROJECT.sprites);
   const [lastDetection, setLastDetection] = useState<AiDetectionResult | null>(null);
   const [runtimeStatus, setRuntimeStatus] = useState<AppContextValue['runtimeStatus']>('idle');
   const [runtimeLogs, setRuntimeLogs] = useState<string[]>(['Runtime IA prêt.']);
@@ -141,7 +212,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [serviceUrl, setServiceUrl] = useState(ARDUINO_SERVICE_DEFAULT_URL);
   const [serviceConnected, setServiceConnected] = useState(false);
   const [compileStatus, setCompileStatus] = useState<AppContextValue['compileStatus']>('idle');
-  const [blockly, setBlocklyActions] = useState<BlocklyActions | null>(null);
   const storage = useMemo(() => createStorageAdapter(window.localStorage), []);
   const aiClient = useMemo(() => createAiClient(aiServiceUrl), [aiServiceUrl]);
   const phoneClient = useMemo(() => createSensagramClient(phoneServiceUrl), [phoneServiceUrl]);
@@ -334,8 +404,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [appendRuntimeLog, buildCurrentProject, storage]);
 
   const saveAiProject = useCallback(async () => {
+    // Capture le dernier XML du workspace avant sauvegarde
+    try {
+      const freshXml = await blockly?.getXmlAsync();
+      if (freshXml !== undefined) {
+        setWorkspaceXml(freshXml);
+      }
+    } catch {
+      // fallback: utiliser workspaceXml actuel
+    }
     const project = buildCurrentProject();
     await storage.set('blocklyduino-ai-project', JSON.stringify(project));
+    // Mettre à jour la liste des projets ouverts
+    setProjects((prev) => {
+      const copy = [...prev];
+      if (copy[activeProjectIndex]) {
+        copy[activeProjectIndex] = project;
+      }
+      return copy;
+    });
     try {
       const saved = await aiClient.saveProject(project);
       setAiProject(saved);
@@ -345,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAiServiceConnected(false);
       appendRuntimeLog(`Sauvegarde locale uniquement: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [aiClient, appendRuntimeLog, buildCurrentProject, storage]);
+  }, [aiClient, appendRuntimeLog, blockly, buildCurrentProject, storage, activeProjectIndex]);
 
   const loadAiProject = useCallback(
     (project: AiProject) => {
@@ -499,6 +586,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveAiProject,
       loadAiProject,
       buildCurrentProject,
+      newAiProject,
+      switchAiProject,
+      closeAiProject,
+      projects,
+      activeProjectIndex,
       inferWithAi,
       blockly,
       setBlocklyActions,
@@ -546,6 +638,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveAiProject,
       loadAiProject,
       buildCurrentProject,
+      newAiProject,
+      switchAiProject,
+      closeAiProject,
+      projects,
+      activeProjectIndex,
       inferWithAi,
       blockly,
     ],
