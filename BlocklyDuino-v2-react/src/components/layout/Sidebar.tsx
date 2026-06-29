@@ -86,7 +86,7 @@ export function Sidebar() {
       </div>
 
       {/* Liste des catégories */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto overflow-x-visible p-2">
         {search.trim() ? (
           // Mode recherche : toutes les catégories plates
           filtered.map((cat) => (
@@ -270,24 +270,19 @@ function BlockItem({
   onAdd: () => void;
 }) {
   const label = blockTypeToLabel(blockType);
-  const [showPreview, setShowPreview] = useState(false);
 
   return (
     <div className="group relative">
       <button
         type="button"
         onClick={onAdd}
-        onMouseEnter={() => setShowPreview(true)}
-        onMouseLeave={() => setShowPreview(false)}
         className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-all hover:bg-[var(--color-surface-alt)] active:scale-[0.97]"
         style={{ color: 'var(--color-text-secondary)' }}
       >
         <Plus size={10} style={{ color: catColor }} />
         <span>{label}</span>
       </button>
-      {showPreview && (
-        <BlockPreview label={label} color={catColor} />
-      )}
+      <BlockPreview label={label} color={catColor} />
     </div>
   );
 }
