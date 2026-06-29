@@ -105,7 +105,7 @@ export function resolveServiceUrl(defaultUrl: string): string {
   try {
     const url = new URL(defaultUrl);
     url.hostname = window.location.hostname;
-    return url.toString();
+    return url.toString().replace(/\/$/, '');
   } catch {
     return defaultUrl;
   }
