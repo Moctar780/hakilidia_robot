@@ -13,6 +13,7 @@
     "dev:ai": "npm run dev -w @blocklyduino/ai-service",
     "dev:service": "npm run dev -w @blocklyduino/arduino-service",
     "dev:sensors": "npm run dev -w @blocklyduino/sensor-service",
+    "dev:all": "npm run dev:ai & npm run dev:service & npm run dev:web & wait",
     "build:shared": "npm run build -w @blocklyduino/shared",
     "build:blockly-static": "npm run sync-blockly",
     "build:web": "npm run build -w blocklyduino-v2-react",
