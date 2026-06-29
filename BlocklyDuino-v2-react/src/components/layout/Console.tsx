@@ -69,14 +69,14 @@ export function Console() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className="flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-all"
+                className="flex cursor-pointer items-center gap-1.5 border-b-2 px-1.5 py-1.5 text-xs font-medium transition-all md:px-3"
                 style={{
                   borderBottomColor: isActive ? (activeTabColor ?? 'var(--color-primary)') : 'transparent',
                   color: isActive ? (activeTabColor ?? 'var(--color-primary)') : 'var(--color-muted)',
                 }}
               >
                 <tab.icon size={13} />
-                {tab.label}
+                <span className="hidden md:inline">{tab.label}</span>
               </button>
             );
           })}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, ChevronDown, ChevronRight, SplitSquareHorizontal, Repeat, Calculator, Type, List, Palette, Variable, FunctionSquare, Cpu, Waves, Thermometer, Cable, Zap, Camera, Bot, Smartphone, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useResponsive } from '../../context/ResponsiveContext';
 import { BLOCKS_BY_CATEGORY, blockTypeToLabel } from '../../constants/blocks';
 
 type Category = {
@@ -145,12 +146,14 @@ function CategoryItem({
   onCollapse: () => void;
 }) {
   const { blockly } = useApp();
+  const { closeSidebar } = useResponsive();
   const blockList = BLOCKS_BY_CATEGORY[cat.id]?.blocks ?? [];
   const hasBlocks = blockList.length > 0;
 
   const addBlock = (blockType: string) => {
     if (!isDisabled) {
       blockly?.addBlock(blockType, 100, 100);
+      closeSidebar();
     }
   };
 

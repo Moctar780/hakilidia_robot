@@ -1,72 +1,102 @@
-import { Save, Play, Settings, HelpCircle, Square, Plus, FolderOpen, Download, FlaskConical } from 'lucide-react';
+import { Save, Play, Settings, HelpCircle, Square, Plus, FolderOpen, Download, FlaskConical, Menu, PanelRightClose } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useResponsive } from '../../context/ResponsiveContext';
 
 export function Header() {
   const { saveAiProject, setSettingsOpen, setActiveModal, runtimeStatus, stopAiProgram } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const { toggleSidebar, togglePanel } = useResponsive();
   const isRunning = runtimeStatus === 'running';
 
   return (
-    <header className="flex h-16 items-center border-b border-[var(--color-border)] bg-white px-4 dark:bg-[#0F172A]">
-      {/* Logo + Nom */}
-      <div className="flex items-center gap-3">
-        <img src="/blockly-static/blocklyduino/media/logo_only2.png" alt="Blockly IA" className="h-8 w-8" />
-        <span className="text-lg font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>Blockly IA</span>
+    <header className="flex h-12 items-center border-b border-[var(--color-border)] bg-white px-2 dark:bg-[#0F172A] md:h-16 md:px-4">
+      {/* Hamburger (mobile) + Logo */}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="mr-1 flex cursor-pointer items-center justify-center rounded-lg p-2 md:hidden"
+        style={{ color: 'var(--color-text-secondary)' }}
+        aria-label="Menu blocs"
+      >
+        <Menu size={20} />
+      </button>
+
+      <div className="flex items-center gap-2 md:gap-3">
+        <img src="/blockly-static/blocklyduino/media/logo_only2.png" alt="Blockly IA" className="h-7 w-7 md:h-8 md:w-8" />
+        <span className="text-base font-semibold tracking-tight md:text-lg" style={{ color: 'var(--color-text)' }}>Blockly IA</span>
       </div>
 
-      {/* Titre central */}
+      {/* Titre central (desktop only) */}
       <div className="mx-6 hidden items-center gap-2 text-sm md:flex" style={{ color: 'var(--color-muted)' }}>
         <span>Programme visuel — IA, Robotique, IoT</span>
       </div>
 
-      {/* Actions */}
+      {/* Actions — groupées pour mobile */}
       <div className="ml-auto flex items-center gap-1">
-        <ToolbarButton icon={Plus} label="Nouveau" onClick={() => window.dispatchEvent(new Event('blocklyduino:new-project'))} />
-        <ToolbarButton icon={FolderOpen} label="Ouvrir" />
-        <ToolbarButton icon={Save} label="Enregistrer" onClick={saveAiProject} />
-        <ToolbarButton icon={Download} label="Exporter" />
-        <ToolbarButton icon={FlaskConical} label="Compiler" onClick={() => window.dispatchEvent(new Event('blocklyduino:verify'))} />
+        {/* Boutons desktop uniquement */}
+        <div className="hidden md:flex md:items-center md:gap-1">
+          <ToolbarButton icon={Plus} label="Nouveau" onClick={() => window.dispatchEvent(new Event('blocklyduino:new-project'))} />
+          <ToolbarButton icon={FolderOpen} label="Ouvrir" />
+          <ToolbarButton icon={Save} label="Enregistrer" onClick={saveAiProject} />
+          <ToolbarButton icon={Download} label="Exporter" />
+          <ToolbarButton icon={FlaskConical} label="Compiler" onClick={() => window.dispatchEvent(new Event('blocklyduino:verify'))} />
 
-        <div className="mx-2 h-6 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+          <div className="mx-2 h-6 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+        </div>
 
+        {/* Bouton Exécuter / Arrêter (toujours visible) */}
         {isRunning ? (
           <button
             type="button"
             onClick={stopAiProgram}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-95"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-white transition-all hover:opacity-90 active:scale-95 md:gap-1.5 md:px-3 md:py-1.5 md:text-sm"
             style={{ backgroundColor: 'var(--color-error)' }}
           >
-            <Square size={16} />
-            Arrêter
+            <Square size={14} />
+            <span className="hidden md:inline">Arrêter</span>
           </button>
         ) : (
           <button
             type="button"
             onClick={() => window.dispatchEvent(new Event('blocklyduino:run-ai-program'))}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-95"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-white transition-all hover:opacity-90 active:scale-95 md:gap-1.5 md:px-3 md:py-1.5 md:text-sm"
             style={{ backgroundColor: 'var(--color-primary)' }}
           >
-            <Play size={16} />
-            Exécuter
+            <Play size={14} />
+            <span className="hidden md:inline">Exécuter</span>
           </button>
         )}
 
-        <div className="mx-2 h-6 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+        <div className="mx-1 h-5 w-px md:mx-2 md:h-6" style={{ backgroundColor: 'var(--color-border)' }} />
 
-        <IconButton onClick={toggleTheme} label={theme === 'light' ? 'Mode sombre' : 'Mode clair'}>
-          {theme === 'light' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-          )}
-        </IconButton>
-        <IconButton onClick={() => setSettingsOpen(true)} label="Paramètres">
-          <Settings size={18} />
-        </IconButton>
-        <IconButton onClick={() => setActiveModal('help')} label="Aide">
-          <HelpCircle size={18} />
-        </IconButton>
+        {/* Panel toggle (mobile) */}
+        <button
+          type="button"
+          onClick={togglePanel}
+          className="flex cursor-pointer items-center justify-center rounded-lg p-2 lg:hidden"
+          style={{ color: 'var(--color-text-secondary)' }}
+          aria-label="Panneau latéral"
+        >
+          <PanelRightClose size={18} />
+        </button>
+
+        {/* Icônes desktop */}
+        <div className="hidden items-center gap-1 md:flex">
+          <IconButton onClick={toggleTheme} label={theme === 'light' ? 'Mode sombre' : 'Mode clair'}>
+            {theme === 'light' ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+            )}
+          </IconButton>
+          <IconButton onClick={() => setSettingsOpen(true)} label="Paramètres">
+            <Settings size={18} />
+          </IconButton>
+          <IconButton onClick={() => setActiveModal('help')} label="Aide">
+            <HelpCircle size={18} />
+          </IconButton>
+        </div>
       </div>
     </header>
   );
