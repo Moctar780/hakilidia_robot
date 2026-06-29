@@ -11,7 +11,7 @@ import { BoardListModal } from './components/modals/BoardListModal';
 import { PortListModal } from './components/modals/PortListModal';
 import { HelpModal } from './components/modals/HelpModal';
 import { SettingsPanel } from './components/panels/SettingsPanel';
-import { X, GripVertical } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import './styles/global.css';
 
@@ -24,24 +24,27 @@ function useDragResize(
   ref: React.RefObject<HTMLDivElement | null>,
   onResize: (delta: number) => void,
 ) {
-  const dragging = useRef(false);
+  const state = useRef({ dragging: false, lastX: 0 });
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const onMouseDown = (e: MouseEvent) => {
       e.preventDefault();
-      dragging.current = true;
+      state.current.dragging = true;
+      state.current.lastX = e.clientX;
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     };
     const onMouseMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      onResize(e.movementX);
+      if (!state.current.dragging) return;
+      const delta = e.clientX - state.current.lastX;
+      state.current.lastX = e.clientX;
+      onResize(delta);
     };
     const onMouseUp = () => {
-      if (!dragging.current) return;
-      dragging.current = false;
+      if (!state.current.dragging) return;
+      state.current.dragging = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
@@ -56,16 +59,13 @@ function useDragResize(
   }, [ref, onResize]);
 }
 
-function DragHandle({ dragRef, position }: { dragRef: React.RefObject<HTMLDivElement | null>; position: 'left' | 'right' }) {
+function DragHandle({ dragRef }: { dragRef: React.RefObject<HTMLDivElement | null> }) {
   return (
     <div
       ref={dragRef}
-      className="absolute inset-y-0 z-10 flex w-2 cursor-col-resize items-center justify-center transition-colors hover:bg-[var(--color-primary)]/20 active:bg-[var(--color-primary)]/30"
-      style={{
-        [position]: '-4px',
-      }}
+      className="flex h-full w-3 cursor-col-resize items-center justify-center transition-colors hover:bg-[var(--color-primary)]/10 active:bg-[var(--color-primary)]/20"
     >
-      <GripVertical size={12} style={{ color: 'var(--color-muted)', opacity: 0.5 }} />
+      <div className="h-8 w-0.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
     </div>
   );
 }
@@ -107,7 +107,7 @@ function AppLayout() {
 
         {/* Poignée de redimensionnement sidebar */}
         <div className="relative hidden md:block">
-          <DragHandle dragRef={sidebarDragRef} position="right" />
+          <DragHandle dragRef={sidebarDragRef} />
         </div>
 
         {/* Overlay mobile pour le sidebar */}
@@ -126,7 +126,7 @@ function AppLayout() {
 
         {/* Poignée de redimensionnement right panel */}
         <div className="relative hidden lg:block">
-          <DragHandle dragRef={panelDragRef} position="left" />
+          <DragHandle dragRef={panelDragRef} />
         </div>
 
         {/* RightPanel */}
