@@ -87,8 +87,8 @@ async function compileSketch(body: CompileRequest, upload: boolean) {
   });
 }
 
-function isContinuousSparkiCommand(command: string) {
-  return ['w', 'x', 'a', 'd', 's'].includes(command.trim().toLowerCase());
+function expectsSparkiReply(command: string) {
+  return /^PING$/i.test(command.trim());
 }
 
 function normalizeSparkiCommand(command: string) {
@@ -124,7 +124,7 @@ function sendSparkiCommand(body: SparkiCommandRequest) {
     const command = assertValidSparkiCommand(body.command);
     const portPath = body.port || SPARKI_DEFAULT_PORT;
     const baudRate = body.baud || SPARKI_DEFAULT_BAUD;
-    const expectReply = body.expectReply ?? !isContinuousSparkiCommand(command);
+    const expectReply = body.expectReply ?? expectsSparkiReply(command);
     const port = new SerialPort({ path: portPath, baudRate, autoOpen: false });
     let reply = '';
     let settled = false;
