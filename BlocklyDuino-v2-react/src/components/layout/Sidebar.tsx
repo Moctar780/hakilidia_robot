@@ -13,6 +13,11 @@ type Category = {
 };
 
 const categories: Category[] = [
+  // === Blocs IA / Robot / Téléphone ===
+  { id: 'ROBOT', name: 'Robot', icon: Bot, color: '#16A34A', group: 'custom' },
+  { id: 'AI', name: 'IA Camera', icon: Camera, color: '#7C3AED', group: 'custom' },
+  { id: 'PHONE', name: 'Capteurs téléphone', icon: Smartphone, color: '#0EA5E9', group: 'custom' },
+
   // === Blocs standards Blockly ===
   { id: 'LOGIC', name: 'Logique', icon: SplitSquareHorizontal, color: '#5C81A6', group: 'standard' },
   { id: 'LOOPS', name: 'Boucles', icon: Repeat, color: '#5CB65C', group: 'standard' },
@@ -22,11 +27,6 @@ const categories: Category[] = [
   { id: 'COLOUR', name: 'Couleur', icon: Palette, color: '#A55B5B', group: 'standard' },
   { id: 'VARIABLES', name: 'Variables', icon: Variable, color: '#A55BA5', group: 'standard' },
   { id: 'FUNCTIONS', name: 'Fonctions', icon: FunctionSquare, color: '#A56B5B', group: 'standard' },
-
-  // === Blocs IA / Robot / Téléphone ===
-  { id: 'AI', name: 'IA Camera', icon: Camera, color: '#7C3AED', group: 'custom' },
-  { id: 'ROBOT', name: 'Robot', icon: Bot, color: '#16A34A', group: 'custom' },
-  { id: 'PHONE', name: 'Capteurs téléphone', icon: Smartphone, color: '#0EA5E9', group: 'custom' },
 ];
 
 export function Sidebar() {
@@ -50,8 +50,8 @@ export function Sidebar() {
     : categories;
 
   const groups = [
-    { label: 'Blocs standards', key: 'standard' as const },
     { label: 'IA & Connectivité', key: 'custom' as const },
+    { label: 'Blocs standards', key: 'standard' as const },
   ];
 
   return (
