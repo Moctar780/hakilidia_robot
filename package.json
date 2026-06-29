@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "sync-blockly": "node packages/blockly-static/src/sync-blockly.mjs",
-    "dev:web": "npm run sync-blockly && npm run dev -w blocklyduino-v2-react",
+    "dev:web": "npm run sync-blockly && npm run dev -w blocklyduino-v2-react -- --host",
     "dev:ai": "npm run dev -w @blocklyduino/ai-service",
     "dev:service": "npm run dev -w @blocklyduino/arduino-service",
     "dev:sensors": "npm run dev -w @blocklyduino/sensor-service",
