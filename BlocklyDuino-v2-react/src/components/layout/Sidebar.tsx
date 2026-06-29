@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, ChevronDown, ChevronRight, SplitSquareHorizontal, Repeat, Calculator, Type, List, Palette, Variable, FunctionSquare, Cpu, Waves, Thermometer, Cable, Zap, Camera, Bot, Smartphone, Plus } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, SplitSquareHorizontal, Repeat, Calculator, Type, List, Palette, Variable, FunctionSquare, Camera, Bot, Smartphone, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useResponsive } from '../../context/ResponsiveContext';
 import { BLOCKS_BY_CATEGORY, blockTypeToLabel } from '../../constants/blocks';
@@ -9,7 +9,7 @@ type Category = {
   name: string;
   icon: React.ComponentType<{ size?: number }>;
   color: string;
-  group: 'standard' | 'arduino' | 'custom';
+  group: 'standard' | 'custom';
 };
 
 const categories: Category[] = [
@@ -22,13 +22,6 @@ const categories: Category[] = [
   { id: 'COLOUR', name: 'Couleur', icon: Palette, color: '#A55B5B', group: 'standard' },
   { id: 'VARIABLES', name: 'Variables', icon: Variable, color: '#A55BA5', group: 'standard' },
   { id: 'FUNCTIONS', name: 'Fonctions', icon: FunctionSquare, color: '#A56B5B', group: 'standard' },
-
-  // === Blocs Arduino ===
-  { id: 'BOARD', name: 'Carte', icon: Cpu, color: '#0F766E', group: 'arduino' },
-  { id: 'SEEED', name: 'Grove', icon: Waves, color: '#14B8A6', group: 'arduino' },
-  { id: 'DS18B20', name: 'DS18B20', icon: Thermometer, color: '#F59E0B', group: 'arduino' },
-  { id: 'RELAY', name: 'Relais', icon: Cable, color: '#F97316', group: 'arduino' },
-  { id: 'SERVO', name: 'Servo', icon: Zap, color: '#EF4444', group: 'arduino' },
 
   // === Blocs IA / Robot / Téléphone ===
   { id: 'AI', name: 'IA Camera', icon: Camera, color: '#7C3AED', group: 'custom' },
@@ -58,7 +51,6 @@ export function Sidebar() {
 
   const groups = [
     { label: 'Blocs standards', key: 'standard' as const },
-    { label: 'Arduino', key: 'arduino' as const },
     { label: 'IA & Connectivité', key: 'custom' as const },
   ];
 
