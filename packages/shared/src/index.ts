@@ -96,6 +96,21 @@ export const PHONE_SENSOR_SERVICE_DEFAULT_URL = 'http://127.0.0.1:8070';
 export const SENSAGRAM_DEFAULT_HOST = '192.168.43.1';
 export const BLOCKLY_WORKSPACE_URL = '/blockly-static/workspace.html';
 
+/** Résout l'URL d'un service en utilisant le hostname de la page,
+ *  ce qui permet un contrôle à distance transparent.
+ *  Ex: resolveServiceUrl('http://127.0.0.1:8080') → 'http://192.168.1.42:8080'
+ */
+export function resolveServiceUrl(defaultUrl: string): string {
+  if (typeof window === 'undefined') return defaultUrl;
+  try {
+    const url = new URL(defaultUrl);
+    url.hostname = window.location.hostname;
+    return url.toString();
+  } catch {
+    return defaultUrl;
+  }
+}
+
 export type AiSprite = {
   id: string;
   name: string;

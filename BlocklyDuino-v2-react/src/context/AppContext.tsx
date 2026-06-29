@@ -12,6 +12,7 @@ import {
   createSensagramClient,
   createStorageAdapter,
   normalizeDetectionResult,
+  resolveServiceUrl,
   type AiDetectionResult,
   type AiInferenceRequest,
   type AiProject,
@@ -190,9 +191,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProjects(newProjects);
   }, [projects, activeProjectIndex, blockly]);
 
-  const [aiServiceUrl, setAiServiceUrl] = useState(AI_SERVICE_DEFAULT_URL);
+  const [aiServiceUrl, setAiServiceUrl] = useState(resolveServiceUrl(AI_SERVICE_DEFAULT_URL));
   const [aiServiceConnected, setAiServiceConnected] = useState(false);
-  const [phoneServiceUrl, setPhoneServiceUrl] = useState(PHONE_SENSOR_SERVICE_DEFAULT_URL);
+  const [phoneServiceUrl, setPhoneServiceUrl] = useState(resolveServiceUrl(PHONE_SENSOR_SERVICE_DEFAULT_URL));
   const [phoneHost, setPhoneHost] = useState(SENSAGRAM_DEFAULT_HOST);
   const [phoneConnected, setPhoneConnected] = useState(false);
   const [phoneStatus, setPhoneStatus] = useState<PhoneSensorStatus | null>(null);
@@ -209,7 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [serialOutput, setSerialOutput] = useState('Console série prête...\n');
   const [ports, setPorts] = useState<PortInfo[]>([]);
-  const [serviceUrl, setServiceUrl] = useState(ARDUINO_SERVICE_DEFAULT_URL);
+  const [serviceUrl, setServiceUrl] = useState(resolveServiceUrl(ARDUINO_SERVICE_DEFAULT_URL));
   const [serviceConnected, setServiceConnected] = useState(false);
   const [compileStatus, setCompileStatus] = useState<AppContextValue['compileStatus']>('idle');
   const storage = useMemo(() => createStorageAdapter(window.localStorage), []);

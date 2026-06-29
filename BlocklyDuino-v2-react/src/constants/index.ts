@@ -14,6 +14,7 @@ export {
   createSensagramClient,
   createStorageAdapter,
   normalizeDetectionResult,
+  resolveServiceUrl,
 } from '@blocklyduino/shared';
 export type {
   AiClient,
