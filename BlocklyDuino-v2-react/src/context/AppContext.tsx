@@ -106,6 +106,7 @@ type AppContextValue = {
   sendSparkiCommand: (command: string, expectReply?: boolean) => Promise<SparkiCommandResponse>;
   saveAiProject: () => Promise<void>;
   loadAiProject: (project: AiProject) => void;
+  buildCurrentProject: () => AiProject;
   inferWithAi: (request: AiInferenceRequest) => Promise<AiDetectionResult>;
   blockly: BlocklyActions | null;
   setBlocklyActions: (actions: BlocklyActions | null) => void;
@@ -497,6 +498,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sendSparkiCommand,
       saveAiProject,
       loadAiProject,
+      buildCurrentProject,
       inferWithAi,
       blockly,
       setBlocklyActions,
@@ -543,6 +545,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sendSparkiCommand,
       saveAiProject,
       loadAiProject,
+      buildCurrentProject,
       inferWithAi,
       blockly,
     ],

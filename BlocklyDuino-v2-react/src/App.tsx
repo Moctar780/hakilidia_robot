@@ -27,7 +27,7 @@ function AppLayout() {
           className={`
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             fixed inset-y-0 left-0 z-40 w-[280px] transition-transform duration-200
-            md:relative md:z-auto md:translate-x-0
+            md:relative md:z-auto md:translate-x-0 md:h-full
           `}
         >
           <Sidebar />
@@ -52,7 +52,7 @@ function AppLayout() {
           className={`
             ${panelOpen ? 'translate-x-0' : 'translate-x-full'}
             fixed inset-y-0 right-0 z-40 w-[360px] max-w-[90vw] transition-transform duration-200
-            lg:relative lg:z-auto lg:translate-x-0
+            lg:relative lg:z-auto lg:translate-x-0 lg:h-full
           `}
         >
           <div className="relative h-full">

@@ -18,7 +18,7 @@ export function RightPanel() {
 
   return (
     <aside
-      className="flex w-[360px] shrink-0 flex-col border-l bg-white dark:bg-[#0F172A]"
+      className="flex h-full w-[360px] shrink-0 flex-col border-l bg-white dark:bg-[#0F172A]"
       style={{ borderColor: 'var(--color-border)' }}
     >
       {/* Onglets */}

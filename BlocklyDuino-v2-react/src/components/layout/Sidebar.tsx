@@ -56,7 +56,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex w-[280px] shrink-0 flex-col border-r bg-white dark:bg-[#0F172A]"
+      className="flex h-full w-[280px] shrink-0 flex-col border-r bg-white dark:bg-[#0F172A]"
       style={{ borderColor: 'var(--color-border)' }}
     >
       {/* Recherche */}

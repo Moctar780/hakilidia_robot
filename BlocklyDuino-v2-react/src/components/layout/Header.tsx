@@ -2,12 +2,52 @@ import { Save, Play, Settings, HelpCircle, Square, Plus, FolderOpen, Download, F
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useResponsive } from '../../context/ResponsiveContext';
+import { downloadProjectFile, createProjectFile, importProjectFile } from '../../lib/projectFiles';
 
 export function Header() {
-  const { saveAiProject, setSettingsOpen, setActiveModal, runtimeStatus, stopAiProgram } = useApp();
+  const { saveAiProject, loadAiProject, setSettingsOpen, setActiveModal, runtimeStatus, stopAiProgram, buildCurrentProject, blockly } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { toggleSidebar, togglePanel } = useResponsive();
   const isRunning = runtimeStatus === 'running';
+
+  const handleNew = () => {
+    blockly?.newProject();
+    loadAiProject({
+      id: `project-${Date.now()}`,
+      name: 'Projet Blockly IA',
+      workspaceXml: '',
+      runtimeCode: '',
+      sprites: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleOpen = async () => {
+    const file = await importProjectFile();
+    if (!file) return;
+    blockly?.loadXml(file.workspaceXml);
+    loadAiProject({
+      id: `project-${Date.now()}`,
+      name: file.name,
+      workspaceXml: file.workspaceXml,
+      runtimeCode: file.runtimeCode,
+      sprites: [],
+      createdAt: file.createdAt,
+      updatedAt: file.updatedAt,
+    });
+  };
+
+  const handleExport = () => {
+    const project = buildCurrentProject();
+    const file = createProjectFile(
+      project.name,
+      project.workspaceXml,
+      project.runtimeCode,
+      project.createdAt,
+    );
+    downloadProjectFile(file);
+  };
 
   return (
     <header className="flex h-12 items-center border-b border-[var(--color-border)] bg-white px-2 dark:bg-[#0F172A] md:h-16 md:px-4">
@@ -36,10 +76,10 @@ export function Header() {
       <div className="ml-auto flex items-center gap-1">
         {/* Boutons desktop uniquement */}
         <div className="hidden md:flex md:items-center md:gap-1">
-          <ToolbarButton icon={Plus} label="Nouveau" onClick={() => window.dispatchEvent(new Event('blocklyduino:new-project'))} />
-          <ToolbarButton icon={FolderOpen} label="Ouvrir" />
+          <ToolbarButton icon={Plus} label="Nouveau" onClick={handleNew} />
+          <ToolbarButton icon={FolderOpen} label="Ouvrir" onClick={handleOpen} />
           <ToolbarButton icon={Save} label="Enregistrer" onClick={saveAiProject} />
-          <ToolbarButton icon={Download} label="Exporter" />
+          <ToolbarButton icon={Download} label="Exporter" onClick={handleExport} />
           <ToolbarButton icon={FlaskConical} label="Compiler" onClick={() => window.dispatchEvent(new Event('blocklyduino:verify'))} />
 
           <div className="mx-2 h-6 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
