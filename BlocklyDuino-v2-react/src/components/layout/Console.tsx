@@ -10,7 +10,7 @@ const tabs: { id: ConsoleTab; label: string; icon: React.ComponentType<{ size?: 
   { id: 'compilation', label: 'Compilation', icon: FileText },
   { id: 'logs', label: 'Logs', icon: FileText },
   { id: 'errors', label: 'Erreurs', icon: AlertCircle, color: '#EF4444' },
-  { id: 'debug', label: 'Debug', icon: Bug },
+  { id: 'debug', label: 'Débogage', icon: Bug },
 ];
 
 export function Console() {

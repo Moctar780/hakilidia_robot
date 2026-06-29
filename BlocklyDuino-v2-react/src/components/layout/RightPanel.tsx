@@ -114,7 +114,7 @@ function AiCard() {
           style={{ backgroundColor: isRunning ? 'var(--color-error)' : 'var(--color-muted)' }}
         >
           <Square size={14} />
-          Stop
+          Arrêter
         </button>
         <IconBtn icon={Save} label="Sauvegarder" />
       </div>
