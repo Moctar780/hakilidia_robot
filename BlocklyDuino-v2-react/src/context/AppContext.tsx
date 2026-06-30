@@ -86,6 +86,8 @@ type AppContextValue = {
   runtimeStatus: 'idle' | 'running' | 'stopped' | 'error';
   setRuntimeStatus: (status: AppContextValue['runtimeStatus']) => void;
   stopAiProgram: () => void;
+  simulatorMode: boolean;
+  setSimulatorMode: (mode: boolean) => void;
   runtimeLogs: string[];
   appendRuntimeLog: (message: string) => void;
   clearRuntimeLogs: () => void;
@@ -208,6 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activePopup, setActivePopup] = useState<PopupId>(null);
   const [activeModal, setActiveModal] = useState<ModalId>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [simulatorMode, setSimulatorMode] = useState(true);
   const [serialOutput, setSerialOutput] = useState('Console série prête...\n');
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [serviceUrl, setServiceUrl] = useState(resolveServiceUrl(ARDUINO_SERVICE_DEFAULT_URL));
@@ -573,6 +576,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setActiveModal,
       settingsOpen,
       setSettingsOpen,
+      simulatorMode,
+      setSimulatorMode,
       serialOutput,
       setSerialOutput,
       ports,
@@ -630,6 +635,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activePopup,
       activeModal,
       settingsOpen,
+      simulatorMode,
+      setSimulatorMode,
       serialOutput,
       ports,
       serviceUrl,

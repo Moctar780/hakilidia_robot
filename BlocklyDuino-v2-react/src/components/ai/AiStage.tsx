@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { runAiProgram } from '../../runtime/aiRuntime';
 import type { AiDetectionKind, AiDetectionResult } from '../../constants';
+import { RobotSimulator } from '../simulator/RobotSimulator';
+import { Cpu } from 'lucide-react';
 import './AiStage.css';
 
 function fallbackDetection(kind: AiDetectionKind): AiDetectionResult {
@@ -58,18 +60,22 @@ export function AiStage() {
   const [usePhoneCamera, setUsePhoneCamera] = useState(false);
   const [cameraPreviewOpen, setCameraPreviewOpen] = useState(false);
   const [, setSpeech] = useState('Prêt à exécuter les blocs IA.');
+  const [trail, setTrail] = useState<{ x: number; y: number }[]>([]);
   const {
     generatedCode,
+    sprites,
     setSprites,
     lastDetection,
     setLastDetection,
     runtimeStatus,
     setRuntimeStatus,
+    simulatorMode,
     runtimeLogs,
     appendRuntimeLog,
     clearRuntimeLogs,
     inferWithAi,
     aiServiceConnected,
+    sendSparkiCommand,
     phoneHost,
     setPhoneHost,
     phoneConnected,
@@ -84,7 +90,6 @@ export function AiStage() {
     getPhoneCameraFrame,
     phoneCameraStreamUrl,
     saveAiProject,
-    sendSparkiCommand,
   } = useApp();
 
   const refreshCameraDevices = async () => {
@@ -283,7 +288,10 @@ export function AiStage() {
     stopRequested.current = false;
     setRuntimeStatus('running');
     clearRuntimeLogs();
-    appendRuntimeLog('Démarrage du programme IA.');
+    if (simulatorMode) {
+      setTrail([]);
+    }
+    appendRuntimeLog(simulatorMode ? 'Démarrage du simulateur.' : 'Démarrage du programme IA.');
     try {
       await runAiProgram(generatedCode, {
         openCamera,
@@ -292,10 +300,17 @@ export function AiStage() {
         updateSprite: (updater) => {
           setSprites((prev) => {
             const [first, ...rest] = prev;
-            return first ? [updater(first), ...rest] : prev;
+            if (!first) return prev;
+            const updated = updater(first);
+            // Enregistrer la position dans le trail
+            setTrail((t) => [...t.slice(-199), { x: updated.x, y: updated.y }]);
+            return [updated, ...rest];
           });
         },
-        sendRobotCommand: sendSparkiCommand,
+        // En mode simulateur, les commandes robot ne font que mettre à jour le sprite
+        sendRobotCommand: simulatorMode
+          ? async (cmd: string) => { appendRuntimeLog(`[Simulateur] ${cmd}`); }
+          : sendSparkiCommand,
         connectPhone: refreshPhoneStatus,
         configurePhoneSensors,
         readPhoneSensor,
@@ -497,6 +512,25 @@ export function AiStage() {
           </div>
         </div>
       )}
+
+      {/* Simulateur robot */}
+      <div className="ai-stage__simulator" style={{ borderTop: '1px solid var(--color-border)', padding: '12px' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <Cpu size={14} style={{ color: simulatorMode ? 'var(--color-primary)' : 'var(--color-muted)' }} />
+          <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>Simulateur robot</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{
+            backgroundColor: simulatorMode ? 'var(--color-primary)' : 'var(--color-surface-alt)',
+            color: simulatorMode ? '#fff' : 'var(--color-text-secondary)',
+          }}>
+            {simulatorMode ? 'ACTIF' : 'DÉSACTIVÉ'}
+          </span>
+        </div>
+        {sprites[0] && (
+          <div className="flex justify-center">
+            <RobotSimulator sprite={sprites[0]} trail={trail} />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
