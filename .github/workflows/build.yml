@@ -73,11 +73,11 @@ jobs:
             package-lock.json
             BlocklyDuino-v2-react/package.json
 
-      - name: Configurer JDK 17
+      - name: Configurer JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Configurer le SDK Android
         uses: android-actions/setup-android@v3
