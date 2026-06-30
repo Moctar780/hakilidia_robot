@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import { Code2, Camera, Smartphone, Brain, Copy, Download, Maximize2, Play, Square, Save, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Code2, Camera, Smartphone, Brain, Cpu, Copy, Download, Maximize2, Play, Square, Save, RefreshCw } from 'lucide-react';
 import { CodeEditor } from '../workspace/CodeEditor';
 import { AiStage } from '../ai/AiStage';
+import { RobotSimulator } from '../simulator/RobotSimulator';
 import { useApp } from '../../context/AppContext';
 
-type Tab = 'code' | 'ai' | 'camera' | 'phone';
+type Tab = 'code' | 'ai' | 'camera' | 'simulator' | 'phone';
 
 const tabs: { id: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
   { id: 'code', label: 'Code', icon: Code2 },
   { id: 'ai', label: 'IA', icon: Brain },
   { id: 'camera', label: 'Caméra', icon: Camera },
+  { id: 'simulator', label: 'Simulateur', icon: Cpu },
   { id: 'phone', label: 'Téléphone', icon: Smartphone },
 ];
 
@@ -48,6 +50,7 @@ export function RightPanel() {
         {activeTab === 'code' && <CodeCard />}
         {activeTab === 'ai' && <AiCard />}
         {activeTab === 'camera' && <CameraCard />}
+        {activeTab === 'simulator' && <SimulatorCard />}
         {activeTab === 'phone' && <PhoneCard />}
       </div>
     </aside>
@@ -165,6 +168,76 @@ function CameraCard() {
           Ouvrir
         </button>
         <IconBtn icon={RefreshCw} label="Actualiser" />
+      </div>
+    </div>
+  );
+}
+
+/* ===== Carte Simulateur ===== */
+function SimulatorCard() {
+  const { sprites, simulatorMode, setSimulatorMode, runtimeStatus } = useApp();
+  const [trail, setTrail] = useState<{ x: number; y: number }[]>([]);
+  const sprite = sprites[0];
+
+  // Met à jour le trail quand le sprite bouge (en écoute)
+  useEffect(() => {
+    if (sprite && runtimeStatus === 'running') {
+      setTrail((t) => [...t.slice(-199), { x: sprite.x, y: sprite.y }]);
+    }
+  }, [sprite?.x, sprite?.y, runtimeStatus]);
+
+  useEffect(() => {
+    if (runtimeStatus !== 'running') setTrail([]);
+  }, [runtimeStatus]);
+
+  return (
+    <div className="flex flex-col gap-3 p-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Simulateur robot</h3>
+        <label className="relative inline-flex cursor-pointer items-center">
+          <input
+            type="checkbox"
+            checked={simulatorMode}
+            onChange={(e) => setSimulatorMode(e.target.checked)}
+            className="peer sr-only"
+          />
+          <div className="h-5 w-9 rounded-full bg-[var(--color-border)] after:absolute after:start-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--color-primary)] peer-checked:after:translate-x-full" />
+          <span className="ml-2 text-xs font-medium" style={{
+            color: simulatorMode ? 'var(--color-primary)' : 'var(--color-muted)',
+          }}>
+            {simulatorMode ? 'ACTIF' : 'OFF'}
+          </span>
+        </label>
+      </div>
+
+      {sprite ? (
+        <div className="flex justify-center">
+          <RobotSimulator sprite={sprite} trail={trail} />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center rounded-lg border py-8" style={{ borderColor: 'var(--color-border)' }}>
+          <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Aucun sprite</span>
+        </div>
+      )}
+
+      <div className="rounded-lg border p-2 text-xs" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
+        <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
+          <span>Position</span>
+          <span style={{ color: 'var(--color-text)' }}>x: {sprite?.x ?? 0}  y: {sprite?.y ?? 0}</span>
+        </div>
+        <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+          <span>Direction</span>
+          <span style={{ color: 'var(--color-text)' }}>{sprite?.direction ?? 90}°</span>
+        </div>
+        <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+          <span>Mode</span>
+          <span style={{
+            color: simulatorMode ? 'var(--color-success)' : 'var(--color-error)',
+            fontWeight: 500,
+          }}>
+            {simulatorMode ? 'Simulation' : 'Robot physique'}
+          </span>
+        </div>
       </div>
     </div>
   );
