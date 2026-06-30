@@ -1,29 +1,27 @@
 import { useMemo } from 'react';
-import { BufferGeometry, Float32BufferAttribute, LineBasicMaterial } from 'three';
+import { BufferGeometry, Float32BufferAttribute, LineBasicMaterial, Line } from 'three';
 
 const ROVER_SCALE = 0.4;
-const MAX_TRAIL_POINTS = 200;
 
 export function Rover3DTrail({ trail }: { trail: { x: number; z: number }[] }) {
-  const { geometry, material } = useMemo(() => {
+  const lineObj = useMemo(() => {
+    if (trail.length < 2) return null;
     const points = trail.map((p) => [p.x * ROVER_SCALE, 0.02, p.z * ROVER_SCALE]).flat();
 
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new Float32BufferAttribute(points, 3));
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(points, 3));
 
-    const mat = new LineBasicMaterial({
+    const material = new LineBasicMaterial({
       color: '#7C3AED',
       transparent: true,
       opacity: 0.4,
       linewidth: 2,
     });
 
-    return { geometry: geo, material: mat };
+    return new Line(geometry, material);
   }, [trail]);
 
-  if (trail.length < 2) return null;
+  if (!lineObj) return null;
 
-  return (
-    <line geometry={geometry} material={material} />
-  );
+  return <primitive object={lineObj} />;
 }

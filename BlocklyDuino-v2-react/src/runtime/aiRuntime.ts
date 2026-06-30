@@ -33,10 +33,6 @@ function parseArgs(raw: string) {
     .map((part) => part.replace(/^["']|["']$/g, ''));
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 /** Sommeil interrompible : vérifie `shouldStop()` tous les 100 ms
  *  pour que le bouton "Arrêter" reste réactif pendant les longs mouvements. */
 function interruptibleSleep(ms: number, shouldStop: () => boolean): Promise<void> {

@@ -1,6 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Group, Mesh, MeshStandardMaterial } from 'three';
+import { Group, Mesh } from 'three';
 import type { Rover3D } from '../../constants';
 
 const ROVER_SCALE = 0.4;

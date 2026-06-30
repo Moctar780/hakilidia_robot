@@ -6,6 +6,7 @@ import { RobotSimulator } from '../simulator/RobotSimulator';
 import { Rover3DCanvas } from '../simulator/Rover3DCanvas';
 import { Rover3DOverlay } from '../simulator/Rover3DOverlay';
 import { useApp } from '../../context/AppContext';
+import type { AiSprite } from '../../constants';
 
 type Tab = 'code' | 'ai' | 'camera' | 'simulator' | 'phone';
 
@@ -342,7 +343,7 @@ function SimulatorOverlay({
   simulatorMode,
   onClose,
 }: {
-  sprite: { x: number; y: number; direction: number } | undefined;
+  sprite: AiSprite | undefined;
   trail: { x: number; y: number }[];
   simulatorMode: boolean;
   onClose: () => void;

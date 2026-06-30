@@ -15,19 +15,6 @@ export function Rover3DScene() {
     return lines;
   }, []);
 
-  const cellLabels = useMemo(() => {
-    const labels: { x: number; z: number; label: string }[] = [];
-    for (let x = -GRID_EXTENT; x <= GRID_EXTENT; x++) {
-      for (let z = -GRID_EXTENT; z <= GRID_EXTENT; z++) {
-        if (x === 0 && z === 0) continue;
-        if (Math.abs(x) <= 4 && Math.abs(z) <= 4) {
-          labels.push({ x: x * GRID_SIZE, z: z * GRID_SIZE, label: `${x},${z}` });
-        }
-      }
-    }
-    return labels;
-  }, []);
-
   return (
     <group>
       {/* Sol */}
