@@ -1,0 +1,57 @@
+name: Build multiplateforme
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: # permet un déclenchement manuel depuis l'UI GitHub
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false # ne pas annuler les autres OS si un échoue
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [22]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout le dépôt
+        uses: actions/checkout@v4
+
+      - name: Configurer Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            packages/shared/package.json
+            packages/blockly-static/package.json
+            BlocklyDuino-v2-react/package.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Build du package partagé
+        run: npm run build:shared
+
+      - name: Synchroniser Blockly static
+        run: npm run build:blockly-static
+
+      - name: Build web (TypeScript + Vite)
+        run: npm run build:web
+        env:
+          CI: true
+          NODE_ENV: production
+
+      - name: Upload l'artéfact (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockly-ia-web-${{ matrix.os }}
+          path: BlocklyDuino-v2-react/dist/
+          compression-level: 9
+          retention-days: 7
