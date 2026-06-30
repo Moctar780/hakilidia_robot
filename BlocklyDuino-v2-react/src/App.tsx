@@ -17,8 +17,8 @@ import './styles/global.css';
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
-const PANEL_MIN = 240;
-const PANEL_MAX = 600;
+const PANEL_MIN = 280;
+const PANEL_MAX = 800;
 
 function useDragResize(
   ref: React.RefObject<HTMLDivElement | null>,
@@ -98,7 +98,7 @@ function AppLayout() {
   }, []));
 
   useDragResize(panelDragRef, useCallback((delta: number) => {
-    setPanelWidth((w) => clamp(w - delta, PANEL_MIN, PANEL_MAX));
+    setPanelWidth((w) => clamp(w - delta, PANEL_MIN, Math.min(PANEL_MAX, window.innerWidth * 0.6)));
   }, []));
 
   return (
