@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AI_SERVICE_DEFAULT_URL,
   ARDUINO_SERVICE_DEFAULT_URL,
@@ -18,6 +18,7 @@ import {
   type AiInferenceRequest,
   type AiProject,
   type AiSprite,
+  type CameraGestureCommand,
   type PhoneControlRequest,
   type PhoneControlResponse,
   type PhoneSensorReading,
@@ -104,6 +105,10 @@ type AppContextValue = {
   setActiveModal: (id: ModalId) => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  cameraControlOpen: boolean;
+  setCameraControlOpen: (open: boolean) => void;
+  cameraGestureActive: boolean;
+  cameraGestureDirection: CameraGestureCommand;
   serialOutput: string;
   setSerialOutput: (value: string | ((prev: string) => string)) => void;
   ports: PortInfo[];
@@ -226,6 +231,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activePopup, setActivePopup] = useState<PopupId>(null);
   const [activeModal, setActiveModal] = useState<ModalId>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cameraControlOpen, setCameraControlOpen] = useState(false);
+  const [cameraGestureActive, setCameraGestureActive] = useState(false);
+  const [cameraGestureDirection, setCameraGestureDirection] = useState<CameraGestureCommand>('stop');
   const [simulatorMode, setSimulatorMode] = useState(true);
   const [serialOutput, setSerialOutput] = useState('Console série prête...\n');
   const [ports, setPorts] = useState<PortInfo[]>([]);
@@ -255,10 +263,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     socket.onerror = () => setServiceConnected(false);
     socket.onmessage = (event) => {
       try {
-        const data = JSON.parse(String(event.data)) as { message?: string; data?: string };
-        const text = data.message ?? data.data;
-        if (text) {
-          setSerialOutput((prev) => `${prev}${text}`);
+        const data = JSON.parse(String(event.data)) as Record<string, unknown>;
+
+        // Événement geste caméra → mettre à jour la direction active
+        if (data.type === 'cameraGesture') {
+          const gesture = data as { direction: CameraGestureCommand; command: string; timestamp: number };
+          setCameraGestureDirection(gesture.direction);
+          setCameraGestureActive(gesture.direction !== 'stop');
+          const label = gesture.direction === 'stop' ? '⏹ STOP' : `🎥 Geste: ${gesture.direction} (${gesture.command})`;
+          setSerialOutput((prev) => `${prev}> ${label}\n`);
+          return;
+        }
+
+        const msgText = (data as { message?: string; data?: string }).message ?? data.data;
+        if (typeof msgText === 'string') {
+          setSerialOutput((prev) => `${prev}${msgText}`);
         }
       } catch {
         setSerialOutput((prev) => `${prev}${String(event.data)}\n`);
@@ -266,6 +285,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     return () => socket.close();
   }, [serviceUrl]);
+
+  // Ref pour la direction courante du geste caméra, mise à jour en temps réel
+  const gestureDirRef = useRef<CameraGestureCommand>('stop');
+  gestureDirRef.current = cameraGestureDirection;
+
+  // Boucle d'animation : démarre/arrête selon cameraGestureActive
+  // Utilise une ref pour la direction, pas de dépendance au changement de direction
+  useEffect(() => {
+    if (!cameraGestureActive) return;
+
+    let animFrameId: number;
+    let lastTime = performance.now();
+    const SPEED = 80; // pixels par seconde (sprite 2D)
+    const ROTATION_SPEED = 90; // degrés par seconde
+    const ROVER_SPEED = 2.5; // unités 3D par seconde
+
+    const animate = (now: number) => {
+      const dir = gestureDirRef.current;
+      if (dir === 'stop') {
+        animFrameId = requestAnimationFrame(animate);
+        lastTime = now;
+        return;
+      }
+
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      setSprites((prev) => {
+        const sprite = prev[0];
+        if (!sprite) return prev;
+        let { x, y, direction } = sprite;
+        const angleRad = ((direction - 90) * Math.PI) / 180;
+
+        switch (dir) {
+          case 'forward':
+            x += Math.cos(angleRad) * SPEED * dt;
+            y += Math.sin(angleRad) * SPEED * dt;
+            break;
+          case 'backward':
+            x -= Math.cos(angleRad) * SPEED * dt;
+            y -= Math.sin(angleRad) * SPEED * dt;
+            break;
+          case 'left':
+            direction += ROTATION_SPEED * dt;
+            break;
+          case 'right':
+            direction -= ROTATION_SPEED * dt;
+            break;
+        }
+        return prev.map((s, i) => (i === 0 ? { ...s, x, y, direction } : s));
+      });
+
+      setRovers((prev) => {
+        const rover = prev[0];
+        if (!rover) return prev;
+        const angleRad = (rover.rotation.y * Math.PI) / 180;
+
+        switch (dir) {
+          case 'forward':
+            return prev.map((r, i) =>
+              i === 0
+                ? { ...r, position: { ...r.position, x: r.position.x - Math.sin(angleRad) * ROVER_SPEED * dt, z: r.position.z + Math.cos(angleRad) * ROVER_SPEED * dt } }
+                : r,
+            );
+          case 'backward':
+            return prev.map((r, i) =>
+              i === 0
+                ? { ...r, position: { ...r.position, x: r.position.x + Math.sin(angleRad) * ROVER_SPEED * dt, z: r.position.z - Math.cos(angleRad) * ROVER_SPEED * dt } }
+                : r,
+            );
+          case 'left':
+            return prev.map((r, i) =>
+              i === 0 ? { ...r, rotation: { ...r.rotation, y: (r.rotation.y + ROTATION_SPEED * dt) % 360 } } : r,
+            );
+          case 'right':
+            return prev.map((r, i) =>
+              i === 0 ? { ...r, rotation: { ...r.rotation, y: (r.rotation.y - ROTATION_SPEED * dt) % 360 } } : r,
+            );
+        }
+        return prev;
+      });
+
+      animFrameId = requestAnimationFrame(animate);
+    };
+
+    animFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrameId);
+  }, [cameraGestureActive, setSprites, setRovers]);
 
   useEffect(() => {
     let active = true;
@@ -597,6 +704,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setActiveModal,
       settingsOpen,
       setSettingsOpen,
+      cameraControlOpen,
+      setCameraControlOpen,
+      cameraGestureActive,
+      cameraGestureDirection,
       simulatorMode,
       setSimulatorMode,
       serialOutput,
@@ -661,6 +772,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activePopup,
       activeModal,
       settingsOpen,
+      cameraControlOpen,
+      setCameraControlOpen,
+      cameraGestureActive,
+      cameraGestureDirection,
       simulatorMode,
       setSimulatorMode,
       serialOutput,

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Terminal, AlertCircle, FileText, Bug, Search, Trash2, GripHorizontal } from 'lucide-react';
 import { SerialConsole } from '../workspace/SerialConsole';
 import { useApp } from '../../context/AppContext';
+import { useProportionalResize } from '../../hooks/useProportionalResize';
 
 type ConsoleTab = 'console' | 'compilation' | 'logs' | 'errors' | 'debug';
 
@@ -16,44 +17,54 @@ const tabs: { id: ConsoleTab; label: string; icon: React.ComponentType<{ size?: 
 export function Console() {
   const [activeTab, setActiveTab] = useState<ConsoleTab>('console');
   const [search, setSearch] = useState('');
-  const [height, setHeight] = useState(180);
-  const [isResizing, setIsResizing] = useState(false);
-  const consoleRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [parentHeight, setParentHeight] = useState(600);
   const { clearRuntimeLogs } = useApp();
 
-  // Redimensionnement
+  // Mesure du parent pour le dimensionnement proportionnel vertical
   useEffect(() => {
-    if (!isResizing) return;
-    const onMouseMove = (e: MouseEvent) => {
-      const newHeight = window.innerHeight - e.clientY;
-      setHeight(Math.max(80, Math.min(500, newHeight)));
-    };
-    const onMouseUp = () => setIsResizing(false);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [isResizing]);
+    const el = containerRef.current?.parentElement;
+    if (!el) return;
+    const measure = () => setParentHeight(el.clientHeight);
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Gestion proportionnelle : [workspace, console]
+  // La console prend ~18% de la hauteur disponible par défaut
+  const {
+    getPanelSizes,
+    createVerticalSplitterHandlers,
+  } = useProportionalResize(
+    [0.82, 0.18],
+    parentHeight,
+    [100, 80], // hauteurs min : workspace 100px, console 80px
+  );
+
+  const panels = getPanelSizes();
+  const consoleHeight = panels[1].size;
+  const splitterHandlers = createVerticalSplitterHandlers(0); // workspace ↔ console
 
   // Détermine la couleur de l'onglet actif
   const activeTabColor = tabs.find((t) => t.id === activeTab)?.color;
 
   return (
     <div
-      ref={consoleRef}
+      ref={containerRef}
       className="flex shrink-0 flex-col border-t"
       style={{
-        height,
+        height: consoleHeight,
         borderColor: 'var(--color-border)',
         backgroundColor: 'var(--color-surface)',
       }}
     >
-      {/* Barre de redimensionnement */}
+      {/* Barre de redimensionnement — style VS Code */}
       <div
-        className="flex cursor-row-resize items-center justify-center py-0.5 transition-colors hover:bg-[var(--color-primary)]/10"
-        onMouseDown={() => setIsResizing(true)}
+        className="split-pane__splitter split-pane__splitter--row flex cursor-row-resize items-center justify-center py-0.5 transition-colors hover:bg-[var(--color-primary)]/10"
+        onMouseDown={splitterHandlers.onMouseDown}
+        onDoubleClick={splitterHandlers.onDoubleClick}
         style={{ borderColor: 'var(--color-border)' }}
       >
         <GripHorizontal size={14} style={{ color: 'var(--color-muted)' }} />
@@ -108,7 +119,7 @@ export function Console() {
 
       {/* Contenu */}
       <div className="flex-1 overflow-auto p-2 font-mono text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-        {activeTab === 'console' && <SerialConsole height={height - 60} />}
+        {activeTab === 'console' && <SerialConsole height={consoleHeight - 60} />}
         {activeTab === 'logs' && <RuntimeLogs />}
         {activeTab === 'errors' && (
           <div className="flex items-center gap-2" style={{ color: 'var(--color-error)' }}>

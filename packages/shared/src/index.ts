@@ -77,6 +77,42 @@ export type SparkiCommandResponse = {
   error?: string;
 };
 
+/** État du processus de contrôle par caméra */
+export type CameraStatus = {
+  running: boolean;
+  pid: number | null;
+  startedAt: string | null;
+  scriptDir: string;
+};
+
+/** Requête de contrôle caméra */
+export type CameraControlRequest = {
+  mirror?: boolean;
+  controlMode?: 'buttons' | 'pointing';
+};
+
+/** Réponse du contrôle caméra */
+export type CameraControlResponse = {
+  ok: boolean;
+  status: CameraStatus;
+  error?: string;
+};
+
+/** Commande de geste détectée par la caméra */
+export type CameraGestureCommand =
+  | 'forward' | 'backward'
+  | 'left' | 'right'
+  | 'stop'
+  | 'gripper_open' | 'gripper_close' | 'gripper_stop';
+
+/** Événement de geste caméra (bridge → service → React) */
+export type CameraGestureEvent = {
+  type: 'cameraGesture';
+  direction: CameraGestureCommand;
+  command: string;
+  timestamp: number;
+};
+
 export type PortInfo = {
   address: string;
   label: string;
@@ -88,7 +124,8 @@ export type ServiceEvent =
   | { type: 'compileOutput'; message: string }
   | { type: 'compileError'; message: string }
   | { type: 'uploadProgress'; message: string }
-  | { type: 'serialData'; data: string };
+  | { type: 'serialData'; data: string }
+  | CameraGestureEvent;
 
 export const ARDUINO_SERVICE_DEFAULT_URL = 'http://127.0.0.1:8080';
 export const AI_SERVICE_DEFAULT_URL = 'http://127.0.0.1:8090';

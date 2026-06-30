@@ -1,6 +1,6 @@
 import { ThemeProvider } from './context/ThemeContext';
 import { ResponsiveProvider, useResponsive } from './context/ResponsiveContext';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { WorkspaceArea } from './components/workspace/WorkspaceArea';
@@ -12,119 +12,94 @@ import { PortListModal } from './components/modals/PortListModal';
 import { HelpModal } from './components/modals/HelpModal';
 import { SettingsPanel } from './components/panels/SettingsPanel';
 import { ModelPreloader } from './components/simulator/ModelPreloader';
+import { CameraControlOverlay } from './components/simulator/CameraControlOverlay';
 import { X } from 'lucide-react';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useProportionalResize } from './hooks/useProportionalResize';
 import './styles/global.css';
 
-const SIDEBAR_MIN = 180;
-const SIDEBAR_MAX = 480;
-const PANEL_MIN = 280;
-const PANEL_MAX = 800;
+/** Tailles minimales des 3 panneaux horizontaux : sidebar, centre, right panel */
+const MIN_SIZES = [180, 200, 280];
 
-function useDragResize(
-  ref: React.RefObject<HTMLDivElement | null>,
-  onResize: (delta: number) => void,
-) {
-  const state = useRef({ dragging: false, lastX: 0 });
+/**
+ * Compteur de splitters pour collisions entre overlays mobiles et handlers.
+ * On désactive le resize proportionnel quand un overlay mobile est ouvert
+ * pour éviter les interférences.
+ */
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const start = (clientX: number) => {
-      state.current.dragging = true;
-      state.current.lastX = clientX;
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    };
-    const move = (clientX: number) => {
-      if (!state.current.dragging) return;
-      const delta = clientX - state.current.lastX;
-      state.current.lastX = clientX;
-      onResize(delta);
-    };
-    const stop = () => {
-      if (!state.current.dragging) return;
-      state.current.dragging = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    const onMouseDown = (e: MouseEvent) => { e.preventDefault(); start(e.clientX); };
-    const onTouchStart = (e: TouchEvent) => { if (e.touches[0]) start(e.touches[0].clientX); };
-    const onMouseMove = (e: MouseEvent) => move(e.clientX);
-    const onTouchMove = (e: TouchEvent) => { if (e.touches[0]) move(e.touches[0].clientX); };
-    const onEnd = () => stop();
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onEnd);
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('touchend', onEnd);
-    el.addEventListener('mousedown', onMouseDown);
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onEnd);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onEnd);
-      el.removeEventListener('mousedown', onMouseDown);
-      el.removeEventListener('touchstart', onTouchStart);
-    };
-  }, [ref, onResize]);
-}
-
-function DragHandle({ dragRef }: { dragRef: React.RefObject<HTMLDivElement | null> }) {
+function Splitter({
+  handlers,
+  className = '',
+}: {
+  handlers: { onMouseDown: (e: React.MouseEvent | MouseEvent) => void; onDoubleClick: () => void };
+  className?: string;
+}) {
   return (
     <div
-      ref={dragRef}
-      className="flex h-full w-4 cursor-col-resize items-center justify-center transition-colors hover:bg-[var(--color-primary)]/10 active:bg-[var(--color-primary)]/20"
+      className={`split-pane__splitter split-pane__splitter--col ${className}`}
+      onMouseDown={handlers.onMouseDown}
+      onDoubleClick={handlers.onDoubleClick}
     >
-      <div className="h-10 w-0.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
+      <div className="split-pane__splitter-bar" />
     </div>
   );
 }
 
 function AppLayout() {
   const { sidebarOpen, panelOpen, closeSidebar, closePanel } = useResponsive();
-  const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [panelWidth, setPanelWidth] = useState(360);
+  const { cameraControlOpen, setCameraControlOpen } = useApp();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mainWidth, setMainWidth] = useState(1200);
 
-  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+  // Mesure de la largeur disponible pour les panneaux
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setMainWidth(el.clientWidth);
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
-  const sidebarDragRef = useRef<HTMLDivElement | null>(null);
-  const panelDragRef = useRef<HTMLDivElement | null>(null);
+  // Gestion proportionnelle des 3 panneaux (sidebar, centre, right panel)
+  // Ratios par défaut : ~18% sidebar, ~52% centre, ~30% panel
+  const {
+    getPanelSizes,
+    createSplitterHandlers,
+  } = useProportionalResize(
+    [0.18, 0.52, 0.30],
+    mainWidth,
+    MIN_SIZES,
+  );
 
-  useDragResize(sidebarDragRef, useCallback((delta: number) => {
-    setSidebarWidth((w) => clamp(w + delta, SIDEBAR_MIN, SIDEBAR_MAX));
-  }, []));
+  const panels = getPanelSizes();
 
-  useDragResize(panelDragRef, useCallback((delta: number) => {
-    setPanelWidth((w) => clamp(w - delta, PANEL_MIN, Math.min(PANEL_MAX, window.innerWidth * 0.6)));
-  }, []));
+  // Les handlers des splitters sont stables (memoïsés dans le hook)
+  const splitter0 = createSplitterHandlers(0); // sidebar ↔ centre
+  const splitter1 = createSplitterHandlers(1); // centre ↔ right panel
 
   return (
     <div className="flex h-full flex-col">
       <Header />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
+      <div ref={containerRef} className="flex flex-1 overflow-hidden">
+        {/* ===== SIDEBAR ===== */}
         <div
           className={`
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            fixed inset-y-0 left-0 z-40 transition-transform duration-200
-            md:relative md:z-auto md:translate-x-0 md:h-full
-          `}
-          style={{ width: sidebarWidth }}
+                fixed inset-y-0 left-0 z-40 transition-transform duration-200
+                md:relative md:z-auto md:translate-x-0 md:h-full
+              `}
+          style={{ width: panels[0].size, flexShrink: 0 }}
         >
           <Sidebar />
         </div>
 
-        {/* Poignée de redimensionnement sidebar */}
-        <div className="relative hidden md:block">
-          <DragHandle dragRef={sidebarDragRef} />
-        </div>
+        {/* Splitter sidebar ↔ centre (masqué sur mobile) */}
+        <Splitter handlers={splitter0} className="hidden md:block" />
 
-        {/* Overlay mobile pour le sidebar */}
+        {/* Overlay mobile sidebar */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-30 bg-black/40 md:hidden"
@@ -132,25 +107,26 @@ function AppLayout() {
           />
         )}
 
-        {/* Zone Blockly + console */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        {/* ===== ZONE CENTRALE (Blockly + Console) ===== */}
+        <div
+          className="flex flex-1 flex-col overflow-hidden"
+          style={{ minWidth: 0 }}
+        >
           <WorkspaceArea />
           <Console />
         </div>
 
-        {/* Poignée de redimensionnement right panel */}
-        <div className="relative hidden lg:block">
-          <DragHandle dragRef={panelDragRef} />
-        </div>
+        {/* Splitter centre ↔ right panel (masqué sur tablette et mobile) */}
+        <Splitter handlers={splitter1} className="hidden lg:block" />
 
-        {/* RightPanel */}
+        {/* ===== RIGHT PANEL ===== */}
         <div
           className={`
-            ${panelOpen ? 'translate-x-0' : 'translate-x-full'}
-            fixed inset-y-0 right-0 z-40 max-w-[90vw] transition-transform duration-200
-            lg:relative lg:z-auto lg:translate-x-0 lg:h-full
-          `}
-          style={{ width: panelWidth }}
+                ${panelOpen ? 'translate-x-0' : 'translate-x-full'}
+                fixed inset-y-0 right-0 z-40 max-w-[90vw] transition-transform duration-200
+                lg:relative lg:z-auto lg:translate-x-0 lg:h-full
+              `}
+          style={{ width: panels[2].size, flexShrink: 0 }}
         >
           <div className="relative h-full">
             <button
@@ -165,7 +141,7 @@ function AppLayout() {
           </div>
         </div>
 
-        {/* Overlay mobile pour le right panel */}
+        {/* Overlay mobile right panel */}
         {panelOpen && (
           <div
             className="fixed inset-0 z-30 bg-black/40 lg:hidden"
@@ -175,6 +151,9 @@ function AppLayout() {
       </div>
 
       <StatusBar />
+      {cameraControlOpen && (
+        <CameraControlOverlay onClose={() => setCameraControlOpen(false)} />
+      )}
     </div>
   );
 }

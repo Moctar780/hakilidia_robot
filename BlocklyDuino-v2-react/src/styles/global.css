@@ -113,3 +113,35 @@ body {
 .switch input:checked + .slider::before {
   transform: translateX(18px);
 }
+
+/* ===== SplitPane — Style VS Code ===== */
+
+/* Conteneur du splitter au survol : agrandit la barre */
+.split-pane__splitter:hover .split-pane__splitter-bar {
+  background-color: var(--color-primary);
+  transform: scaleX(1.5);
+}
+
+.split-pane__splitter--row:hover .split-pane__splitter-bar {
+  transform: scaleY(1.5);
+}
+
+/* Pendant le glissement : barre toujours visible */
+.split-pane__splitter:active .split-pane__splitter-bar,
+.split-pane__splitter--active .split-pane__splitter-bar {
+  background-color: var(--color-primary);
+}
+
+/* Zone d'interaction étendue invisible autour du splitter */
+.split-pane__splitter::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+/* Panneaux : héritent de la hauteur/largeur du parent flex */
+.split-pane__panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}

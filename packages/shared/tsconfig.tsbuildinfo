@@ -1,0 +1,1 @@
+{"root":["./src/aiClient.ts","./src/arduinoClient.ts","./src/index.ts","./src/persistence.ts","./src/sensagramClient.ts"],"version":"6.0.3"}

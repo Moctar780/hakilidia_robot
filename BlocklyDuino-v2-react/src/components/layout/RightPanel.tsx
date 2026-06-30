@@ -181,7 +181,7 @@ function CameraCard() {
 
 /* ===== Carte Simulateur ===== */
 function SimulatorCard() {
-  const { sprites, rovers, simulatorMode, setSimulatorMode, runtimeStatus, use3D, setUse3D } = useApp();
+  const { sprites, rovers, simulatorMode, setSimulatorMode, runtimeStatus, use3D, setUse3D, setCameraControlOpen } = useApp();
   const [trail, setTrail] = useState<{ x: number; y: number }[]>([]);
   const [roverTrail, setRoverTrail] = useState<{ x: number; z: number }[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -228,6 +228,16 @@ function SimulatorCard() {
               title={use3D ? 'Passer en 2D' : 'Passer en 3D'}
             >
               <Cube3D size={14} />
+            </button>
+            {/* Contrôle par caméra */}
+            <button
+              type="button"
+              onClick={() => setCameraControlOpen(true)}
+              className="inline-flex cursor-pointer items-center justify-center rounded-lg border bg-white p-1.5 transition-all hover:bg-[var(--color-surface-alt)] active:scale-95 dark:bg-[#1E293B]"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+              title="Contrôle par caméra (détection des doigts)"
+            >
+              <Camera size={14} />
             </button>
             {/* Agrandir */}
             <button

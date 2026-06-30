@@ -4,10 +4,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { SerialPort } from 'serialport';
 import { WebSocketServer } from 'ws';
-import type { CompileRequest, PortInfo, ServiceEvent, SparkiCommandRequest } from '@blocklyduino/shared';
+import type { CompileRequest, PortInfo, ServiceEvent, SparkiCommandRequest, CameraStatus, CameraGestureCommand, CameraGestureEvent } from '@blocklyduino/shared';
 
 const PORT = Number(process.env.BLOCKLYDUINO_SERVICE_PORT ?? 8080);
 const HOST = process.env.BLOCKLYDUINO_SERVICE_HOST ?? '127.0.0.1';
@@ -15,6 +15,151 @@ const CLI = process.env.ARDUINO_CLI_BIN ?? 'arduino-cli';
 const SHOW_SYSTEM_TTY = process.env.BLOCKLYDUINO_SHOW_SYSTEM_TTY === '1';
 const SPARKI_DEFAULT_PORT = process.env.SPARKI_PORT ?? '/dev/ttyACM0';
 const SPARKI_DEFAULT_BAUD = Number(process.env.SPARKI_BAUD ?? 9600);
+
+/* ===== Gestion du processus caméra (sparki_djelia) ===== */
+const SPARKI_DJELIA_DIR = process.env.SPARKI_DJELIA_DIR ?? path.resolve(process.env.HOME ?? '/home/moctar', 'Desktop/projets/arduino/sparki_djelia');
+const SPARKI_DJELIA_VENV = process.env.SPARKI_DJELIA_VENV ?? path.join(SPARKI_DJELIA_DIR, '.venv/bin/python');
+
+let cameraProcess: ChildProcess | null = null;
+let cameraProcessStartedAt: string | null = null;
+
+function getCameraStatus(): CameraStatus {
+  return {
+    running: cameraProcess !== null && cameraProcess.exitCode === null,
+    pid: cameraProcess?.pid ?? null,
+    startedAt: cameraProcessStartedAt,
+    scriptDir: SPARKI_DJELIA_DIR,
+  };
+}
+
+/** Parse une ligne stdout du processus caméra pour extraire une commande gestuelle.
+ *  Format: "Commande caméra : w" ou "Commande caméra : GO 1"
+ *  La recherche est plus flexible pour gérer les préfixes/décalages de buffer. */
+const CAMERA_CMD_RE = /Commande caméra\s*:\s*(\S+(?:\s+\S+)?)/i;
+const DIRECTION_MAP: Record<string, CameraGestureCommand> = {
+  w: 'forward',
+  x: 'backward',
+  a: 'left',
+  d: 'right',
+  s: 'stop',
+  'GO 1': 'gripper_open',
+  'GC 1': 'gripper_close',
+  GS: 'gripper_stop',
+};
+
+function parseCameraLine(line: string): CameraGestureEvent | null {
+  const match = line.trim().match(CAMERA_CMD_RE);
+  if (!match) return null;
+  const rawCmd = match[1];
+  const direction = DIRECTION_MAP[rawCmd] ?? 'stop';
+  return {
+    type: 'cameraGesture',
+    direction,
+    command: rawCmd,
+    timestamp: Date.now(),
+  };
+}
+
+function startCameraProcess(mirror: boolean, controlMode: 'buttons' | 'pointing', simulate: boolean): Promise<CameraStatus> {
+  return new Promise((resolve, reject) => {
+    if (cameraProcess && cameraProcess.exitCode === null) {
+      resolve(getCameraStatus());
+      return;
+    }
+
+    const pythonBin = existsSync(SPARKI_DJELIA_VENV) ? SPARKI_DJELIA_VENV : 'python3';
+    // Flag -u pour stdout non bufferisé (redondant avec PYTHONUNBUFFERED=1)
+    const args = ['-u', 'main.py', 'camera'];
+    // En mode simulation, on ne connecte pas le robot physique
+    if (simulate) args.push('--no-sparki');
+    if (mirror) args.push('--mirror');
+    if (controlMode === 'pointing') {
+      args.push('--control-mode', 'pointing');
+    }
+
+    cameraProcess = spawn(pythonBin, args, {
+      cwd: SPARKI_DJELIA_DIR,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONUNBUFFERED: '1' },
+    });
+
+    cameraProcessStartedAt = new Date().toISOString();
+    let stdoutBuffer = '';
+
+    cameraProcess.stdout?.on('data', (chunk: Buffer) => {
+      const text = String(chunk);
+      broadcast({ type: 'serialData', data: `[CAMÉRA] ${text}` });
+
+      // Bufferiser et parser ligne par ligne pour extraire les gestes
+      stdoutBuffer += text;
+      const lines = stdoutBuffer.split('\n');
+      // Garder la dernière ligne incomplète dans le buffer
+      stdoutBuffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const gesture = parseCameraLine(line);
+        if (gesture) {
+          console.log(`[caméra geste] ${gesture.command} → ${gesture.direction}`);
+          broadcast(gesture);
+        } else {
+          // Loguer les lignes non-reconnues pour debug (uniquement si inhabituelles)
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('[') && !trimmed.startsWith('Mode') && !trimmed.startsWith('Aucune')) {
+            console.log(`[caméra stdout] ${trimmed}`);
+          }
+        }
+      }
+    });
+
+    cameraProcess.stderr?.on('data', (chunk: Buffer) => {
+      const text = String(chunk);
+      broadcast({ type: 'compileError', message: `[CAMÉRA] ${text}` });
+      console.error(`[caméra stderr] ${text}`);
+    });
+
+    cameraProcess.on('error', (error) => {
+      cameraProcess = null;
+      cameraProcessStartedAt = null;
+      broadcast({ type: 'compileError', message: `[CAMÉRA] Erreur: ${error.message}` });
+      reject(error);
+    });
+
+    cameraProcess.on('exit', (code) => {
+      const msg = `[CAMÉRA] Processus arrêté (code ${code})`;
+      broadcast({ type: 'serialData', data: `${msg}\n` });
+      // Envoyer un geste STOP pour arrêter le robot simulé
+      broadcast({ type: 'cameraGesture', direction: 'stop', command: 's', timestamp: Date.now() });
+      console.log(msg);
+      cameraProcess = null;
+      cameraProcessStartedAt = null;
+    });
+
+    // Attendre un peu pour détecter un échec rapide (ex: caméra inaccessible)
+    setTimeout(() => {
+      if (cameraProcess && cameraProcess.exitCode === null) {
+        resolve(getCameraStatus());
+      } else if (cameraProcess === null) {
+        reject(new Error('Impossible de démarrer le processus caméra.'));
+      }
+    }, 1500);
+  });
+}
+
+function stopCameraProcess(): CameraStatus {
+  if (cameraProcess && cameraProcess.exitCode === null) {
+    cameraProcess.kill('SIGTERM');
+    // Force kill après 3s si le processus ne répond pas
+    setTimeout(() => {
+      if (cameraProcess && cameraProcess.exitCode === null) {
+        cameraProcess.kill('SIGKILL');
+      }
+    }, 3000);
+  }
+  cameraProcess = null;
+  cameraProcessStartedAt = null;
+  return getCameraStatus();
+}
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -269,6 +414,56 @@ app.post('/cli/search-lib', async (req, res) => {
 app.post('/cli/install-lib', async (req, res) => {
   const result = await runCommand(CLI, ['lib', 'install', String(req.body.library ?? '')]);
   res.status(result.code === 0 ? 200 : 500).json({ ok: result.code === 0, output: result.output });
+});
+
+/* ===== Endpoints contrôle caméra ===== */
+
+/** Démarrer le processus de contrôle par caméra */
+app.post('/camera/start', async (req, res) => {
+  try {
+    const mirror = req.body?.mirror !== false;
+    const controlMode: 'buttons' | 'pointing' = req.body?.controlMode ?? 'buttons';
+    const simulate = req.body?.simulate !== false; // par défaut: mode simulation
+    const status = await startCameraProcess(mirror, controlMode, simulate);
+    res.json({ ok: true, status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ ok: false, error: message, status: getCameraStatus() });
+  }
+});
+
+/** Arrêter le processus caméra */
+app.post('/camera/stop', (_req, res) => {
+  const status = stopCameraProcess();
+  res.json({ ok: true, status });
+});
+
+/** Obtenir l'état du processus caméra */
+app.get('/camera/status', (_req, res) => {
+  res.json({ ok: true, status: getCameraStatus() });
+});
+
+/** Recevoir un geste du bridge Python (mode physique) et le broadcast aux clients WebSocket */
+app.post('/camera/gesture', (req, res) => {
+  try {
+    const { command } = req.body as { command?: string };
+    if (!command) {
+      res.status(400).json({ ok: false, error: 'Commande manquante' });
+      return;
+    }
+    const direction = DIRECTION_MAP[command] ?? 'stop';
+    const gesture: CameraGestureEvent = {
+      type: 'cameraGesture',
+      direction,
+      command,
+      timestamp: Date.now(),
+    };
+    broadcast(gesture);
+    res.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ ok: false, error: message });
+  }
 });
 
 server.listen(PORT, HOST, () => {
