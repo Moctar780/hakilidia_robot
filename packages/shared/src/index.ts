@@ -122,6 +122,47 @@ export type AiSprite = {
   visible: boolean;
 };
 
+/** Rover 3D — remplace AiSprite dans le simulateur 3D */
+export type Rover3D = {
+  id: string;
+  name: string;
+  position: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+  linearVelocity: { x: number; y: number; z: number };
+  angularVelocity: { x: number; y: number; z: number };
+  speed: number;
+  gripperState: 'open' | 'closed' | 'stopped';
+  gripperWidth: number;
+  size: number;
+  visible: boolean;
+  sensors: {
+    ultrasonic: number;
+    color: string;
+    linePosition: number;
+    battery: number;
+  };
+};
+
+export const DEFAULT_ROVER_3D: Rover3D = {
+  id: 'rover-3d',
+  name: 'Rover 3D',
+  position: { x: 0, y: 0, z: 0 },
+  rotation: { x: 0, y: 0, z: 0 },
+  linearVelocity: { x: 0, y: 0, z: 0 },
+  angularVelocity: { x: 0, y: 0, z: 0 },
+  speed: 0,
+  gripperState: 'closed',
+  gripperWidth: 0,
+  size: 1,
+  visible: true,
+  sensors: {
+    ultrasonic: -1,
+    color: 'none',
+    linePosition: 0,
+    battery: 100,
+  },
+};
+
 export type AiUser = {
   id: string;
   name: string;

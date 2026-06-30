@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Code2, Camera, Smartphone, Brain, Cpu, Copy, Download, Maximize2, Play, Square, Save, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Code2, Camera, Smartphone, Brain, Cpu, Copy, Download, Maximize2, Minimize2, Play, Square, Save, RefreshCw, Cuboid as Cube3D } from 'lucide-react';
 import { CodeEditor } from '../workspace/CodeEditor';
 import { AiStage } from '../ai/AiStage';
 import { RobotSimulator } from '../simulator/RobotSimulator';
+import { Rover3DCanvas } from '../simulator/Rover3DCanvas';
+import { Rover3DOverlay } from '../simulator/Rover3DOverlay';
 import { useApp } from '../../context/AppContext';
 
 type Tab = 'code' | 'ai' | 'camera' | 'simulator' | 'phone';
@@ -48,10 +50,13 @@ export function RightPanel() {
       {/* Contenu des onglets */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'code' && <CodeCard />}
-        {activeTab === 'ai' && <AiCard />}
         {activeTab === 'camera' && <CameraCard />}
         {activeTab === 'simulator' && <SimulatorCard />}
         {activeTab === 'phone' && <PhoneCard />}
+        {/* AiCard toujours monté pour que l'écouteur global blocklyduino:run-ai-program reste actif */}
+        <div style={{ display: activeTab === 'ai' ? 'contents' : 'none' }}>
+          <AiCard />
+        </div>
       </div>
     </aside>
   );
@@ -175,81 +180,245 @@ function CameraCard() {
 
 /* ===== Carte Simulateur ===== */
 function SimulatorCard() {
-  const { sprites, simulatorMode, setSimulatorMode, runtimeStatus } = useApp();
+  const { sprites, rovers, simulatorMode, setSimulatorMode, runtimeStatus, use3D, setUse3D } = useApp();
   const [trail, setTrail] = useState<{ x: number; y: number }[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [simSize, setSimSize] = useState(360);
+  const [roverTrail, setRoverTrail] = useState<{ x: number; z: number }[]>([]);
+  const [expanded, setExpanded] = useState(false);
   const sprite = sprites[0];
+  const rover = rovers[0];
 
-  // Mesure la largeur disponible pour le canvas
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const measure = () => setSimSize(Math.min(el.clientWidth - 24, 600));
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  // Met à jour le trail quand le sprite bouge
+  // Met à jour le trail 2D
   useEffect(() => {
     if (sprite && runtimeStatus === 'running') {
       setTrail((t) => [...t.slice(-199), { x: sprite.x, y: sprite.y }]);
     }
   }, [sprite?.x, sprite?.y, runtimeStatus]);
 
+  // Met à jour le trail 3D
   useEffect(() => {
-    if (runtimeStatus !== 'running') setTrail([]);
+    if (rover && runtimeStatus === 'running') {
+      setRoverTrail((t) => [...t.slice(-199), { x: rover.position.x, z: rover.position.z }]);
+    }
+  }, [rover?.position.x, rover?.position.z, runtimeStatus]);
+
+  useEffect(() => {
+    if (runtimeStatus !== 'running') {
+      setTrail([]);
+      setRoverTrail([]);
+    }
   }, [runtimeStatus]);
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-3 p-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Simulateur robot</h3>
-        <label className="relative inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            checked={simulatorMode}
-            onChange={(e) => setSimulatorMode(e.target.checked)}
-            className="peer sr-only"
-          />
-          <div className="h-5 w-9 rounded-full bg-[var(--color-border)] after:absolute after:start-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--color-primary)] peer-checked:after:translate-x-full" />
-          <span className="ml-2 text-xs font-medium" style={{
-            color: simulatorMode ? 'var(--color-primary)' : 'var(--color-muted)',
-          }}>
-            {simulatorMode ? 'ACTIF' : 'OFF'}
-          </span>
-        </label>
+    <>
+      <div className="flex flex-col gap-3 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            {use3D ? 'Rover 3D' : 'Simulateur robot'}
+          </h3>
+          <div className="flex items-center gap-1">
+            {/* Toggle 2D/3D */}
+            <button
+              type="button"
+              onClick={() => setUse3D(!use3D)}
+              className={`inline-flex cursor-pointer items-center justify-center rounded-lg border p-1.5 transition-all active:scale-95 ${
+                use3D ? 'bg-[var(--color-primary)] text-white' : 'bg-white dark:bg-[#1E293B]'
+              }`}
+              style={{ borderColor: 'var(--color-border)', color: use3D ? 'white' : 'var(--color-text-secondary)' }}
+              title={use3D ? 'Passer en 2D' : 'Passer en 3D'}
+            >
+              <Cube3D size={14} />
+            </button>
+            {/* Agrandir */}
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="inline-flex cursor-pointer items-center justify-center rounded-lg border bg-white p-1.5 transition-all hover:bg-[var(--color-surface-alt)] active:scale-95 dark:bg-[#1E293B]"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+              title="Agrandir le simulateur"
+            >
+              <Maximize2 size={14} />
+            </button>
+            {/* Toggle simulation/physique */}
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                checked={simulatorMode}
+                onChange={(e) => setSimulatorMode(e.target.checked)}
+                className="peer sr-only"
+              />
+              <div className="h-5 w-9 rounded-full bg-[var(--color-border)] after:absolute after:start-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--color-primary)] peer-checked:after:translate-x-full" />
+              <span className="ml-2 text-xs font-medium" style={{
+                color: simulatorMode ? 'var(--color-primary)' : 'var(--color-muted)',
+              }}>
+                {simulatorMode ? 'ACTIF' : 'OFF'}
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Simulateur 3D ou 2D */}
+        {use3D ? (
+          rover ? (
+            <div className="w-full" style={{ height: 320 }}>
+              <Rover3DCanvas rover={rover} trail={roverTrail} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center rounded-lg border py-8" style={{ borderColor: 'var(--color-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Aucun rover</span>
+            </div>
+          )
+        ) : sprite ? (
+          <div className="flex justify-center">
+            <RobotSimulator sprite={sprite} trail={trail} />
+          </div>
+        ) : (
+          <div className="flex items-center justify-center rounded-lg border py-8" style={{ borderColor: 'var(--color-border)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Aucun sprite</span>
+          </div>
+        )}
+
+        {/* Infos */}
+        <div className="rounded-lg border p-2 text-xs" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
+          {use3D && rover ? (
+            <>
+              <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
+                <span>Position</span>
+                <span style={{ color: 'var(--color-text)' }}>x: {rover.position.x.toFixed(1)}  z: {rover.position.z.toFixed(1)}</span>
+              </div>
+              <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                <span>Direction</span>
+                <span style={{ color: 'var(--color-text)' }}>{rover.rotation.y.toFixed(0)}°</span>
+              </div>
+              <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                <span>Batterie</span>
+                <span style={{ color: rover.sensors.battery > 20 ? 'var(--color-success)' : 'var(--color-error)' }}>
+                  {rover.sensors.battery.toFixed(0)}%
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
+                <span>Position</span>
+                <span style={{ color: 'var(--color-text)' }}>x: {sprite?.x ?? 0}  y: {sprite?.y ?? 0}</span>
+              </div>
+              <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                <span>Direction</span>
+                <span style={{ color: 'var(--color-text)' }}>{sprite?.direction ?? 90}°</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+            <span>Mode</span>
+            <span style={{
+              color: simulatorMode ? 'var(--color-success)' : 'var(--color-error)',
+              fontWeight: 500,
+            }}>
+              {simulatorMode ? 'Simulation' : 'Robot physique'}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {sprite ? (
-        <div className="flex justify-center">
-          <RobotSimulator sprite={sprite} trail={trail} size={simSize} />
-        </div>
-      ) : (
-        <div className="flex items-center justify-center rounded-lg border py-8" style={{ borderColor: 'var(--color-border)' }}>
-          <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Aucun sprite</span>
-        </div>
-      )}
+      {/* Overlay plein écran */}
+      {expanded && use3D && rover ? (
+        <Rover3DOverlay rover={rover} trail={roverTrail} onClose={() => setExpanded(false)} />
+      ) : expanded && !use3D && sprite ? (
+        <SimulatorOverlay
+          sprite={sprite}
+          trail={trail}
+          simulatorMode={simulatorMode}
+          onClose={() => setExpanded(false)}
+        />
+      ) : null}
+    </>
+  );
+}
 
-      <div className="rounded-lg border p-2 text-xs" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-alt)' }}>
-        <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-          <span>Position</span>
-          <span style={{ color: 'var(--color-text)' }}>x: {sprite?.x ?? 0}  y: {sprite?.y ?? 0}</span>
+/* ===== Overlay plein écran du simulateur 2D ===== */
+function SimulatorOverlay({
+  sprite,
+  trail,
+  simulatorMode,
+  onClose,
+}: {
+  sprite: { x: number; y: number; direction: number } | undefined;
+  trail: { x: number; y: number }[];
+  simulatorMode: boolean;
+  onClose: () => void;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [overlaySize, setOverlaySize] = useState(600);
+
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const measure = () => {
+      const size = Math.min(el.clientWidth, el.clientHeight) - 48;
+      setOverlaySize(Math.max(300, size));
+    };
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        ref={overlayRef}
+        className="relative flex max-h-[95vh] max-w-[95vw] flex-col items-center gap-4 rounded-2xl border bg-white p-6 shadow-2xl dark:bg-[#0F172A]"
+        style={{ borderColor: 'var(--color-border)', width: '90vmin', height: '90vmin' }}
+      >
+        <div className="flex w-full items-center justify-between">
+          <h3 className="text-base font-semibold" style={{ color: 'var(--color-text)' }}>
+            Simulateur robot
+            {simulatorMode && (
+              <span className="ml-2 text-xs font-medium" style={{ color: 'var(--color-success)' }}>
+                ● Simulation
+              </span>
+            )}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              x: {sprite?.x ?? 0}  y: {sprite?.y ?? 0}  dir: {sprite?.direction ?? 90}°
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex cursor-pointer items-center justify-center rounded-lg border bg-white p-2 transition-all hover:bg-[var(--color-surface-alt)] active:scale-95 dark:bg-[#1E293B]"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+              title="Réduire"
+            >
+              <Minimize2 size={16} />
+            </button>
+          </div>
         </div>
-        <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          <span>Direction</span>
-          <span style={{ color: 'var(--color-text)' }}>{sprite?.direction ?? 90}°</span>
-        </div>
-        <div className="flex justify-between mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          <span>Mode</span>
-          <span style={{
-            color: simulatorMode ? 'var(--color-success)' : 'var(--color-error)',
-            fontWeight: 500,
-          }}>
-            {simulatorMode ? 'Simulation' : 'Robot physique'}
-          </span>
+
+        <div className="flex flex-1 items-center justify-center w-full overflow-hidden">
+          {sprite ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <div style={{ width: overlaySize, height: overlaySize }}>
+                <RobotSimulator sprite={sprite} trail={trail} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center rounded-lg border py-16 px-8" style={{ borderColor: 'var(--color-border)' }}>
+              <span className="text-sm" style={{ color: 'var(--color-muted)' }}>Aucun sprite</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

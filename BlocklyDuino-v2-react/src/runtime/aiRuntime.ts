@@ -1,10 +1,12 @@
 import type { AiDetectionResult, AiDetectionKind, AiSprite, PhoneControlRequest, PhoneSensorReading } from '../constants';
+import type { Rover3D } from '../constants';
 
 export type RuntimeContext = {
   openCamera: () => Promise<void>;
   closeCamera: () => void;
   detect: (kind: AiDetectionKind) => Promise<AiDetectionResult>;
   updateSprite: (updater: (sprite: AiSprite) => AiSprite) => void;
+  updateRover: (updater: (rover: Rover3D) => Rover3D) => void;
   sendRobotCommand?: (command: string, expectReply?: boolean) => Promise<unknown>;
   connectPhone?: (host?: string) => Promise<unknown>;
   configurePhoneSensors?: (request: PhoneControlRequest) => Promise<unknown>;
@@ -18,7 +20,7 @@ export type RuntimeContext = {
   shouldStop: () => boolean;
 };
 
-const COMMAND_PATTERN = /(AI|ROBOT|PHONE)_([A-Z_]+)\((.*)\);?/;
+const COMMAND_PATTERN = /(AI|ROBOT|PHONE|ROVER)_([A-Z_]+)\((.*)\);?/;
 const MAX_LOOP_ITERATIONS = 100;
 
 function parseArgs(raw: string) {
@@ -33,6 +35,28 @@ function parseArgs(raw: string) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** Sommeil interrompible : vérifie `shouldStop()` tous les 100 ms
+ *  pour que le bouton "Arrêter" reste réactif pendant les longs mouvements. */
+function interruptibleSleep(ms: number, shouldStop: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    let remaining = ms;
+    function tick() {
+      if (shouldStop()) {
+        resolve(); // arrêt immédiat
+        return;
+      }
+      if (remaining <= 0) {
+        resolve(); // durée écoulée
+        return;
+      }
+      const step = Math.min(100, remaining);
+      remaining -= step;
+      window.setTimeout(tick, step);
+    }
+    tick();
+  });
 }
 
 async function sendRobot(context: RuntimeContext, command: string, expectReply = true) {
@@ -81,7 +105,7 @@ async function readPhone(context: RuntimeContext, type: string) {
 function countExecutableCommands(lines: string[]) {
   return lines.filter((line) => {
     const trimmed = line.trim();
-    return trimmed.startsWith('AI_') || trimmed.startsWith('ROBOT_') || trimmed.startsWith('PHONE_');
+    return trimmed.startsWith('AI_') || trimmed.startsWith('ROBOT_') || trimmed.startsWith('PHONE_') || trimmed.startsWith('ROVER_');
   }).length;
 }
 
@@ -262,33 +286,84 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
   } else if (command === 'SPRITE_TURN') {
     const degrees = Number(args[0] || 15);
     context.updateSprite((sprite) => ({ ...sprite, direction: sprite.direction + degrees }));
+    spriteDirection = (spriteDirection + degrees) % 360;
     context.log(`Sprite tourné de ${degrees} degrés.`);
   } else if (command === 'SPRITE_SAY') {
     context.say(args[0] || 'Bonjour');
   } else if (command === 'WAIT') {
     const seconds = Number(args[0] || 1);
     context.log(`Pause ${seconds}s.`);
-    await sleep(seconds * 1000);
+    await interruptibleSleep(seconds * 1000, () => context.shouldStop());
   } else if (command === 'FORWARD') {
     const steps = Number(args[0] || 10);
     await sendRobot(context, `F ${steps}`);
     context.updateSprite((sprite) => ({ ...sprite, x: sprite.x + steps }));
-    context.log(`Robot avance de ${steps} pas.`);
+    spriteDirection = (context as unknown as { _lastSpriteDir?: number })._lastSpriteDir ?? 90;
+    context.updateRover?.((rover) => {
+      const angleRad = (rover.rotation.y * Math.PI) / 180;
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        position: {
+          x: rover.position.x - Math.sin(angleRad) * steps * 0.2,
+          y: rover.position.y,
+          z: rover.position.z + Math.cos(angleRad) * steps * 0.2,
+        },
+      };
+    });
+    const dur = Math.abs(steps) * 200 * (100 / Math.max(currentRoverSpeed, 1));
+    context.log(`Robot avance de ${steps} pas (${Math.round(dur)}ms).`);
+    await interruptibleSleep(dur, () => context.shouldStop());
   } else if (command === 'BACKWARD') {
     const steps = Number(args[0] || 10);
     await sendRobot(context, `B ${steps}`);
     context.updateSprite((sprite) => ({ ...sprite, x: sprite.x - steps }));
-    context.log(`Robot recule de ${steps} pas.`);
+    spriteDirection = (context as unknown as { _lastSpriteDir?: number })._lastSpriteDir ?? 90;
+    context.updateRover?.((rover) => {
+      const angleRad = (rover.rotation.y * Math.PI) / 180;
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        position: {
+          x: rover.position.x + Math.sin(angleRad) * steps * 0.2,
+          y: rover.position.y,
+          z: rover.position.z - Math.cos(angleRad) * steps * 0.2,
+        },
+      };
+    });
+    const dur = Math.abs(steps) * 200 * (100 / Math.max(currentRoverSpeed, 1));
+    context.log(`Robot recule de ${steps} pas (${Math.round(dur)}ms).`);
+    await interruptibleSleep(dur, () => context.shouldStop());
   } else if (command === 'TURN_LEFT') {
     const degrees = Number(args[0] || 90);
     await sendRobot(context, `TL ${degrees}`);
     context.updateSprite((sprite) => ({ ...sprite, direction: sprite.direction - degrees }));
-    context.log(`Robot tourne à gauche de ${degrees} degrés.`);
+    spriteDirection = (spriteDirection - degrees) % 360;
+    context.updateRover?.((rover) => {
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        rotation: { ...rover.rotation, y: ((rover.rotation.y - degrees) % 360) },
+      };
+    });
+    const dur = Math.abs(degrees) * 15 * (100 / Math.max(currentRoverSpeed, 1));
+    context.log(`Robot tourne à gauche de ${degrees}° (${Math.round(dur)}ms).`);
+    await interruptibleSleep(dur, () => context.shouldStop());
   } else if (command === 'TURN_RIGHT') {
     const degrees = Number(args[0] || 90);
     await sendRobot(context, `TR ${degrees}`);
     context.updateSprite((sprite) => ({ ...sprite, direction: sprite.direction + degrees }));
-    context.log(`Robot tourne à droite de ${degrees} degrés.`);
+    spriteDirection = (spriteDirection + degrees) % 360;
+    context.updateRover?.((rover) => {
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        rotation: { ...rover.rotation, y: ((rover.rotation.y + degrees) % 360) },
+      };
+    });
+    const dur = Math.abs(degrees) * 15 * (100 / Math.max(currentRoverSpeed, 1));
+    context.log(`Robot tourne à droite de ${degrees}° (${Math.round(dur)}ms).`);
+    await interruptibleSleep(dur, () => context.shouldStop());
   } else if (command === 'SET_SPEED') {
     const speed = Number(args[0] || 50);
     await sendRobot(context, `V ${speed}`);
@@ -307,10 +382,149 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
   } else if (command === 'GRIPPER_STOP') {
     await sendRobot(context, 'GS');
     context.log('Pince arrêtée.');
+  }
+
+  /* ==========================================================================
+     Commandes Rover 3D – chaque mouvement attend visuellement la fin du
+     précédent via un sleep pour que les blocs s'exécutent en séquence.
+     La durée est fonction de la distance/angle et de la vitesse configurée.
+     ========================================================================== */
+
+  else if (command === 'ROVER_FORWARD') {
+    const steps = Number(args[0] || 2);
+    context.updateRover((rover) => {
+      const angleRad = (rover.rotation.y * Math.PI) / 180;
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        position: {
+          x: rover.position.x - Math.sin(angleRad) * steps,
+          y: rover.position.y,
+          z: rover.position.z + Math.cos(angleRad) * steps,
+        },
+        // Ne PAS modifier speed ici
+      };
+    });
+    const speed = Math.max(currentRoverSpeed, 1);
+    const duration = Math.abs(steps) * 400 * (100 / speed);
+    context.log(`Rover avance de ${steps} unités (${Math.round(duration)}ms).`);
+    await interruptibleSleep(duration, () => context.shouldStop());
+  } else if (command === 'ROVER_BACKWARD') {
+    const steps = Number(args[0] || 2);
+    context.updateRover((rover) => {
+      const angleRad = (rover.rotation.y * Math.PI) / 180;
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        position: {
+          x: rover.position.x + Math.sin(angleRad) * steps,
+          y: rover.position.y,
+          z: rover.position.z - Math.cos(angleRad) * steps,
+        },
+      };
+    });
+    const speed = Math.max(currentRoverSpeed, 1);
+    const duration = Math.abs(steps) * 400 * (100 / speed);
+    context.log(`Rover recule de ${steps} unités (${Math.round(duration)}ms).`);
+    await interruptibleSleep(duration, () => context.shouldStop());
+  } else if (command === 'ROVER_LEFT') {
+    const steps = Number(args[0] || 2);
+    context.updateRover((rover) => {
+      const angleRad = ((rover.rotation.y - 90) * Math.PI) / 180;
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        position: {
+          x: rover.position.x - Math.sin(angleRad) * steps,
+          y: rover.position.y,
+          z: rover.position.z + Math.cos(angleRad) * steps,
+        },
+      };
+    });
+    const speed = Math.max(currentRoverSpeed, 1);
+    const duration = Math.abs(steps) * 400 * (100 / speed);
+    context.log(`Rover translate à gauche de ${steps} unités (${Math.round(duration)}ms).`);
+    await interruptibleSleep(duration, () => context.shouldStop());
+  } else if (command === 'ROVER_RIGHT') {
+    const steps = Number(args[0] || 2);
+    context.updateRover((rover) => {
+      const angleRad = ((rover.rotation.y + 90) * Math.PI) / 180;
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        position: {
+          x: rover.position.x - Math.sin(angleRad) * steps,
+          y: rover.position.y,
+          z: rover.position.z + Math.cos(angleRad) * steps,
+        },
+      };
+    });
+    const speed = Math.max(currentRoverSpeed, 1);
+    const duration = Math.abs(steps) * 400 * (100 / speed);
+    context.log(`Rover translate à droite de ${steps} unités (${Math.round(duration)}ms).`);
+    await interruptibleSleep(duration, () => context.shouldStop());
+  } else if (command === 'ROVER_YAW_LEFT') {
+    const degrees = Number(args[0] || 15);
+    context.updateRover((rover) => {
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        rotation: { ...rover.rotation, y: ((rover.rotation.y - degrees) % 360) },
+      };
+    });
+    const speed = Math.max(currentRoverSpeed, 1);
+    const duration = Math.abs(degrees) * 20 * (100 / speed);
+    context.log(`Rover tourne à gauche de ${degrees}° (${Math.round(duration)}ms).`);
+    await interruptibleSleep(duration, () => context.shouldStop());
+  } else if (command === 'ROVER_YAW_RIGHT') {
+    const degrees = Number(args[0] || 15);
+    context.updateRover((rover) => {
+      currentRoverSpeed = rover.speed;
+      return {
+        ...rover,
+        rotation: { ...rover.rotation, y: ((rover.rotation.y + degrees) % 360) },
+      };
+    });
+    const speed = Math.max(currentRoverSpeed, 1);
+    const duration = Math.abs(degrees) * 20 * (100 / speed);
+    context.log(`Rover tourne à droite de ${degrees}° (${Math.round(duration)}ms).`);
+    await interruptibleSleep(duration, () => context.shouldStop());
+  } else if (command === 'ROVER_SET_SPEED') {
+    const speed = Number(args[0] || 50);
+    currentRoverSpeed = speed;
+    context.updateRover((rover) => ({ ...rover, speed }));
+    context.log(`Vitesse rover réglée à ${speed}%.`);
+  } else if (command === 'ROVER_STOP') {
+    context.updateRover((rover) => ({ ...rover, speed: 0 }));
+    currentRoverSpeed = 0;
+    context.log('Rover arrêté.');
+  } else if (command === 'ROVER_GRIPPER_OPEN') {
+    const width = Number(args[0] || 3);
+    context.updateRover((rover) => ({
+      ...rover,
+      gripperState: 'open',
+      gripperWidth: width,
+    }));
+    context.log(`Pince rover ouverte (${width} cm).`);
+    await interruptibleSleep(500, () => context.shouldStop());
+  } else if (command === 'ROVER_GRIPPER_CLOSE') {
+    context.updateRover((rover) => ({
+      ...rover,
+      gripperState: 'closed',
+      gripperWidth: 0,
+    }));
+    context.log('Pince rover fermée.');
+    await interruptibleSleep(500, () => context.shouldStop());
+  } else if (command === 'ROVER_READ_ULTRASONIC') {
+    context.log('Capteur ultrason: simulation active, pas d\'obstacle détecté.');
   } else {
     context.log(`Commande inconnue: ${command}`);
   }
 }
+
+/* Variables globales pour le rover 3D */
+let spriteDirection = 90;
+let currentRoverSpeed = 50;
 
 async function executeLines(lines: string[], context: RuntimeContext, start = 0, end = lines.length) {
   for (let index = start; index < end; index += 1) {

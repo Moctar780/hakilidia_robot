@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { runAiProgram } from '../../runtime/aiRuntime';
 import type { AiDetectionKind, AiDetectionResult } from '../../constants';
@@ -61,6 +61,7 @@ export function AiStage() {
   const {
     generatedCode,
     setSprites,
+    setRovers,
     lastDetection,
     setLastDetection,
     runtimeStatus,
@@ -280,7 +281,7 @@ export function AiStage() {
     }
   }, [runtimeStatus]);
 
-  const runProgram = async () => {
+  const runProgram = useCallback(async () => {
     stopRequested.current = false;
     setRuntimeStatus('running');
     clearRuntimeLogs();
@@ -292,6 +293,12 @@ export function AiStage() {
         detect,
         updateSprite: (updater) => {
           setSprites((prev) => {
+            const [first, ...rest] = prev;
+            return first ? [updater(first), ...rest] : prev;
+          });
+        },
+        updateRover: (updater) => {
+          setRovers((prev) => {
             const [first, ...rest] = prev;
             return first ? [updater(first), ...rest] : prev;
           });
@@ -316,24 +323,46 @@ export function AiStage() {
       setRuntimeStatus('error');
       appendRuntimeLog(error instanceof Error ? error.message : String(error));
     }
-  };
+  }, [
+    generatedCode,
+    simulatorMode,
+    openCamera,
+    closeCamera,
+    detect,
+    sendSparkiCommand,
+    refreshPhoneStatus,
+    configurePhoneSensors,
+    readPhoneSensor,
+    startPhoneUdp,
+    stopPhoneUdp,
+    setUsePhoneCamera,
+    setSprites,
+    setRovers,
+    setRuntimeStatus,
+    clearRuntimeLogs,
+    appendRuntimeLog,
+  ]);
 
-  const stopProgram = () => {
+  const stopProgram = useCallback(() => {
     stopRequested.current = true;
     setOverlayDetectionKind(null);
     setRuntimeStatus('stopped');
     appendRuntimeLog('Arrêt demandé.');
-  };
+  }, [setRuntimeStatus, appendRuntimeLog]);
+
+  // Ref pour éviter la dépendance instable sur runtimeStatus dans l'écouteur d'événement
+  const runtimeStatusRef = useRef(runtimeStatus);
+  runtimeStatusRef.current = runtimeStatus;
 
   useEffect(() => {
     const handleGlobalRun = () => {
-      if (runtimeStatus !== 'running') {
+      if (runtimeStatusRef.current !== 'running') {
         void runProgram();
       }
     };
     window.addEventListener('blocklyduino:run-ai-program', handleGlobalRun);
     return () => window.removeEventListener('blocklyduino:run-ai-program', handleGlobalRun);
-  }, [runtimeStatus, runProgram]);
+  }, [runProgram]);
 
   return (
     <aside className="ai-stage">

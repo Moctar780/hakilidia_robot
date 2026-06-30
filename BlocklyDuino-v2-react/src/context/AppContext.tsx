@@ -5,6 +5,7 @@ import {
   BOARDS,
   DEFAULT_AI_PROJECT,
   DEFAULT_CODE,
+  DEFAULT_ROVER_3D,
   PHONE_SENSOR_SERVICE_DEFAULT_URL,
   SENSAGRAM_DEFAULT_HOST,
   boardById,
@@ -23,6 +24,7 @@ import {
   type PhoneSensorStatus,
   type PhoneSensorsResponse,
   type PortInfo,
+  type Rover3D,
   type SparkiCommandResponse,
 } from '../constants';
 import type { ModalId, PopupId } from '../types';
@@ -81,6 +83,11 @@ type AppContextValue = {
   phoneCameraStreamUrl: string;
   sprites: AiSprite[];
   setSprites: (sprites: AiSprite[] | ((prev: AiSprite[]) => AiSprite[])) => void;
+  rovers: Rover3D[];
+  setRovers: (rovers: Rover3D[] | ((prev: Rover3D[]) => Rover3D[])) => void;
+  updateRover: (updater: (rover: Rover3D) => Rover3D) => void;
+  use3D: boolean;
+  setUse3D: (mode: boolean) => void;
   lastDetection: AiDetectionResult | null;
   setLastDetection: (result: AiDetectionResult | null) => void;
   runtimeStatus: 'idle' | 'running' | 'stopped' | 'error';
@@ -131,6 +138,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeProjectIndex, setActiveProjectIndex] = useState(0);
   const [blockly, setBlocklyActions] = useState<BlocklyActions | null>(null);
   const [sprites, setSprites] = useState<AiSprite[]>(DEFAULT_AI_PROJECT.sprites);
+  const [rovers, setRovers] = useState<Rover3D[]>([{ ...DEFAULT_ROVER_3D }]);
+  const [use3D, setUse3D] = useState(true);
+
+  const updateRover = useCallback((updater: (rover: Rover3D) => Rover3D) => {
+    setRovers((prev) => {
+      const [first, ...rest] = prev;
+      return first ? [updater(first), ...rest] : prev;
+    });
+  }, []);
 
   const newAiProject = useCallback(() => {
     const now = new Date().toISOString();
@@ -553,6 +569,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       phoneCameraStreamUrl,
       sprites,
       setSprites,
+      rovers,
+      setRovers,
+      updateRover,
+      use3D,
+      setUse3D,
       lastDetection,
       setLastDetection,
       runtimeStatus,
@@ -621,6 +642,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getPhoneCameraFrame,
       phoneCameraStreamUrl,
       sprites,
+      rovers,
+      setRovers,
+      updateRover,
+      use3D,
+      setUse3D,
       lastDetection,
       runtimeStatus,
       stopAiProgram,

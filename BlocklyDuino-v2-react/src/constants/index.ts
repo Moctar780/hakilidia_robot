@@ -7,6 +7,7 @@ export {
   DEFAULT_AI_SPRITE,
   DEFAULT_AI_USER,
   DEFAULT_CODE,
+  DEFAULT_ROVER_3D,
   PHONE_SENSOR_SERVICE_DEFAULT_URL,
   SENSAGRAM_DEFAULT_HOST,
   boardById,
@@ -33,6 +34,7 @@ export type {
   PhoneSensorReading,
   PhoneSensorStatus,
   PhoneSensorsResponse,
+  Rover3D,
   SparkiCommandResponse,
   StorageAdapter,
 } from '@blocklyduino/shared';

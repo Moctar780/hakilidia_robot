@@ -11,6 +11,7 @@ import { BoardListModal } from './components/modals/BoardListModal';
 import { PortListModal } from './components/modals/PortListModal';
 import { HelpModal } from './components/modals/HelpModal';
 import { SettingsPanel } from './components/panels/SettingsPanel';
+import { ModelPreloader } from './components/simulator/ModelPreloader';
 import { X } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import './styles/global.css';
@@ -184,6 +185,7 @@ export default function App() {
       <ResponsiveProvider>
         <AppProvider>
           <AppLayout />
+          <ModelPreloader />
           <BoardListModal />
           <PortListModal />
           <HelpModal />
