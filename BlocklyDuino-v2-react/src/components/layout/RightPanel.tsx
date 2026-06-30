@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Code2, Camera, Smartphone, Brain, Cpu, Copy, Download, Maximize2, Play, Square, Save, RefreshCw } from 'lucide-react';
 import { CodeEditor } from '../workspace/CodeEditor';
 import { AiStage } from '../ai/AiStage';
@@ -177,9 +177,22 @@ function CameraCard() {
 function SimulatorCard() {
   const { sprites, simulatorMode, setSimulatorMode, runtimeStatus } = useApp();
   const [trail, setTrail] = useState<{ x: number; y: number }[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [simSize, setSimSize] = useState(360);
   const sprite = sprites[0];
 
-  // Met à jour le trail quand le sprite bouge (en écoute)
+  // Mesure la largeur disponible pour le canvas
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setSimSize(Math.min(el.clientWidth - 24, 600));
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Met à jour le trail quand le sprite bouge
   useEffect(() => {
     if (sprite && runtimeStatus === 'running') {
       setTrail((t) => [...t.slice(-199), { x: sprite.x, y: sprite.y }]);
@@ -191,7 +204,7 @@ function SimulatorCard() {
   }, [runtimeStatus]);
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div ref={containerRef} className="flex flex-col gap-3 p-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Simulateur robot</h3>
         <label className="relative inline-flex cursor-pointer items-center">
@@ -212,7 +225,7 @@ function SimulatorCard() {
 
       {sprite ? (
         <div className="flex justify-center">
-          <RobotSimulator sprite={sprite} trail={trail} />
+          <RobotSimulator sprite={sprite} trail={trail} size={simSize} />
         </div>
       ) : (
         <div className="flex items-center justify-center rounded-lg border py-8" style={{ borderColor: 'var(--color-border)' }}>

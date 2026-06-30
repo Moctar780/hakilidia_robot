@@ -2,12 +2,12 @@ import { useRef, useEffect } from 'react';
 import type { AiSprite } from '../../constants';
 
 const GRID_SIZE = 40;
-const VIEW_SIZE = 400;
 const ROBOT_SIZE = 24;
 
 type Point = { x: number; y: number };
 
-export function RobotSimulator({ sprite, trail }: { sprite: AiSprite; trail: Point[] }) {
+export function RobotSimulator({ sprite, trail, size }: { sprite: AiSprite; trail: Point[]; size?: number }) {
+  const viewSize = size ?? 400;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -17,33 +17,33 @@ export function RobotSimulator({ sprite, trail }: { sprite: AiSprite; trail: Poi
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = VIEW_SIZE * dpr;
-    canvas.height = VIEW_SIZE * dpr;
+    canvas.width = viewSize * dpr;
+    canvas.height = viewSize * dpr;
     ctx.scale(dpr, dpr);
 
-    const cx = VIEW_SIZE / 2;
-    const cy = VIEW_SIZE / 2;
+    const cx = viewSize / 2;
+    const cy = viewSize / 2;
 
     // Fond
     ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(0, 0, VIEW_SIZE, VIEW_SIZE);
+    ctx.fillRect(0, 0, viewSize, viewSize);
 
     // Grille
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 0.5;
-    for (let x = 0; x <= VIEW_SIZE; x += GRID_SIZE) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, VIEW_SIZE); ctx.stroke();
+    for (let x = 0; x <= viewSize; x += GRID_SIZE) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, viewSize); ctx.stroke();
     }
-    for (let y = 0; y <= VIEW_SIZE; y += GRID_SIZE) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(VIEW_SIZE, y); ctx.stroke();
+    for (let y = 0; y <= viewSize; y += GRID_SIZE) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(viewSize, y); ctx.stroke();
     }
 
     // Axes centraux
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, VIEW_SIZE); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(VIEW_SIZE, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, viewSize); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(viewSize, cy); ctx.stroke();
     ctx.setLineDash([]);
 
     // Labels axe
@@ -125,15 +125,15 @@ export function RobotSimulator({ sprite, trail }: { sprite: AiSprite; trail: Poi
     ctx.fillStyle = '#475569';
     ctx.font = '11px Inter, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`x: ${sprite.x}  y: ${sprite.y}  dir: ${sprite.direction}°`, 8, VIEW_SIZE - 8);
+    ctx.fillText(`x: ${sprite.x}  y: ${sprite.y}  dir: ${sprite.direction}°`, 8, viewSize - 8);
 
-  }, [sprite, trail]);
+  }, [sprite, trail, viewSize]);
 
   return (
     <canvas
       ref={canvasRef}
       className="w-full rounded-lg border"
-      style={{ borderColor: 'var(--color-border)', maxWidth: VIEW_SIZE, aspectRatio: '1' }}
+      style={{ borderColor: 'var(--color-border)', aspectRatio: '1' }}
     />
   );
 }
