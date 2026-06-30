@@ -2,6 +2,8 @@
   "name": "blocklyduino-v2-react",
   "private": true,
   "version": "0.1.0",
+  "description": "Blockly IA - Interface de programmation robotique par blocs",
+  "author": "Hakilidia",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -44,6 +46,7 @@
   "build": {
     "appId": "cc.hakilidia.blocklyia",
     "productName": "Blockly IA",
+    "electronVersion": "43.0.0",
     "directories": {
       "output": "release",
       "buildResources": "electron"
@@ -105,7 +108,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "electron": "^43.0.0",
+    "electron": "43.0.0",
     "electron-builder": "^26.15.3",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
