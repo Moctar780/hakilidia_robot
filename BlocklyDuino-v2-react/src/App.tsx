@@ -29,32 +29,45 @@ function useDragResize(
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const onMouseDown = (e: MouseEvent) => {
-      e.preventDefault();
+
+    const start = (clientX: number) => {
       state.current.dragging = true;
-      state.current.lastX = e.clientX;
+      state.current.lastX = clientX;
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     };
-    const onMouseMove = (e: MouseEvent) => {
+    const move = (clientX: number) => {
       if (!state.current.dragging) return;
-      const delta = e.clientX - state.current.lastX;
-      state.current.lastX = e.clientX;
+      const delta = clientX - state.current.lastX;
+      state.current.lastX = clientX;
       onResize(delta);
     };
-    const onMouseUp = () => {
+    const stop = () => {
       if (!state.current.dragging) return;
       state.current.dragging = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-    el.addEventListener('mousedown', onMouseDown);
+
+    const onMouseDown = (e: MouseEvent) => { e.preventDefault(); start(e.clientX); };
+    const onTouchStart = (e: TouchEvent) => { if (e.touches[0]) start(e.touches[0].clientX); };
+    const onMouseMove = (e: MouseEvent) => move(e.clientX);
+    const onTouchMove = (e: TouchEvent) => { if (e.touches[0]) move(e.touches[0].clientX); };
+    const onEnd = () => stop();
+
     window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onEnd);
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
     return () => {
-      el.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onEnd);
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('touchstart', onTouchStart);
     };
   }, [ref, onResize]);
 }
@@ -63,9 +76,9 @@ function DragHandle({ dragRef }: { dragRef: React.RefObject<HTMLDivElement | nul
   return (
     <div
       ref={dragRef}
-      className="flex h-full w-3 cursor-col-resize items-center justify-center transition-colors hover:bg-[var(--color-primary)]/10 active:bg-[var(--color-primary)]/20"
+      className="flex h-full w-4 cursor-col-resize items-center justify-center transition-colors hover:bg-[var(--color-primary)]/10 active:bg-[var(--color-primary)]/20"
     >
-      <div className="h-8 w-0.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
+      <div className="h-10 w-0.5 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
     </div>
   );
 }
