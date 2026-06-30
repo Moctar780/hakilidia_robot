@@ -93,7 +93,11 @@ jobs:
           CI: true
           NODE_ENV: production
 
-      - name: Générer le projet Android
+      - name: Ajouter la plateforme Android
+        working-directory: BlocklyDuino-v2-react
+        run: npx cap add android
+
+      - name: Synchroniser le projet Android
         working-directory: BlocklyDuino-v2-react
         run: npx cap sync android
 
