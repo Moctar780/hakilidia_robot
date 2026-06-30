@@ -10,10 +10,16 @@
     "prebuild": "npm run sync-blockly",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@blocklyduino/shared": "file:../packages/shared",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@react-three/rapier": "^2.2.0",

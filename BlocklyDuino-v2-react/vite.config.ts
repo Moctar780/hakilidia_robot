@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  base: './', // Chemins relatifs pour Capacitor (Android)
   server: {
     fs: {
       allow: ['..'],
