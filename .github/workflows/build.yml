@@ -56,6 +56,55 @@ jobs:
           compression-level: 9
           retention-days: 7
 
+      - name: Builder l'application native (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: BlocklyDuino-v2-react
+        run: npx electron-builder --win --x64 --publish never
+        env:
+          CI: true
+
+      - name: Builder l'application native (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: BlocklyDuino-v2-react
+        run: npx electron-builder --mac --x64 --publish never
+        env:
+          CI: true
+
+      - name: Builder l'application native (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: BlocklyDuino-v2-react
+        run: npx electron-builder --linux --x64 --publish never
+        env:
+          CI: true
+
+      - name: Upload l'artéfact Electron (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockly-ia-electron-win
+          path: BlocklyDuino-v2-react/release/
+          compression-level: 0
+          retention-days: 7
+
+      - name: Upload l'artéfact Electron (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockly-ia-electron-mac
+          path: BlocklyDuino-v2-react/release/
+          compression-level: 0
+          retention-days: 7
+
+      - name: Upload l'artéfact Electron (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockly-ia-electron-linux
+          path: BlocklyDuino-v2-react/release/
+          compression-level: 0
+          retention-days: 7
+
   android:
     name: Build Android APK
     runs-on: ubuntu-latest

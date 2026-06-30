@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "sync-blockly": "npm run sync -w @blocklyduino/blockly-static",
     "predev": "npm run sync-blockly",
@@ -13,7 +14,13 @@
     "preview": "vite preview",
     "android:sync": "npx cap sync android",
     "android:open": "npx cap open android",
-    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "electron:dev": "ELECTRON_DEV=true npx electron .",
+    "electron:preview": "npm run build && npx electron .",
+    "electron:build:win": "npm run build && npx electron-builder --win --x64",
+    "electron:build:linux": "npm run build && npx electron-builder --linux --x64",
+    "electron:build:mac": "npm run build && npx electron-builder --mac --x64",
+    "electron:build:all": "npm run build && npx electron-builder --win --linux --mac --x64"
   },
   "dependencies": {
     "@blocklyduino/shared": "file:../packages/shared",
@@ -33,6 +40,62 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.1",
     "three": "^0.185.0"
+  },
+  "build": {
+    "appId": "cc.hakilidia.blocklyia",
+    "productName": "Blockly IA",
+    "directories": {
+      "output": "release",
+      "buildResources": "electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": null,
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Development"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "public.app-category.developer-tools"
+    }
   },
   "devDependencies": {
     "@electron/fuses": "^2.1.3",

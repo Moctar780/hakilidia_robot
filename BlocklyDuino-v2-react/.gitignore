@@ -18,6 +18,10 @@ android/
 # Capacitor iOS (optionnel)
 ios/
 
+# Electron builds (regénéré via electron-builder)
+release/
+*.asar
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
