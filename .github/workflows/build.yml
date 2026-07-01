@@ -139,16 +139,50 @@ jobs:
         working-directory: BlocklyDuino-v2-react
         run: npx tauri android init
 
-      - name: Build l'APK Android (Tauri)
+      - name: Générer le keystore pour la signature
+        run: |
+          keytool -genkey -v -keystore android.keystore \
+            -alias hakilidia-release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass hakilidia123 -keypass hakilidia123 \
+            -dname "CN=Hakilidia, OU=Hakilidia, O=Hakilidia, L=Dakar, S=DK, C=SN"
+
+      - name: Copier le keystore dans le projet Android
+        run: |
+          cp android.keystore BlocklyDuino-v2-react/src-tauri/gen/android/app/
+
+      - name: Injecter la config de signature
+        working-directory: BlocklyDuino-v2-react/src-tauri/gen/android/app
+        run: |
+          cat >> build.gradle.kts << 'EOF'
+
+          android {
+            signingConfigs {
+              create("release") {
+                storeFile = file("android.keystore")
+                storePassword = "hakilidia123"
+                keyAlias = "hakilidia-release"
+                keyPassword = "hakilidia123"
+              }
+            }
+            buildTypes {
+              getByName("release") {
+                signingConfig = signingConfigs.getByName("release")
+              }
+            }
+          }
+          EOF
+
+      - name: Build l'APK Android (release, multi-arch)
         working-directory: BlocklyDuino-v2-react
-        run: npx tauri android build --target aarch64
+        run: npx tauri android build --target aarch64 --target armv7 --release
         env:
           CI: true
 
       - name: Upload l'APK
         uses: actions/upload-artifact@v4
         with:
-          name: blockly-ia-android-apk
+          name: hakilidia-blockly-android-apk
           path: BlocklyDuino-v2-react/src-tauri/gen/android/app/build/outputs/apk/
           compression-level: 0
           retention-days: 7
