@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Terminal, AlertCircle, FileText, Bug, Search, Trash2, GripHorizontal } from 'lucide-react';
 import { SerialConsole } from '../workspace/SerialConsole';
 import { useApp } from '../../context/AppContext';
-import { useProportionalResize } from '../../hooks/useProportionalResize';
 
 type ConsoleTab = 'console' | 'compilation' | 'logs' | 'errors' | 'debug';
+
+const CONSOLE_HEIGHT = 150; // hauteur fixe par défaut
+const CONSOLE_MINIMIZED_HEIGHT = 28;
 
 const tabs: { id: ConsoleTab; label: string; icon: React.ComponentType<{ size?: number }>; color?: string }[] = [
   { id: 'console', label: 'Console', icon: Terminal },
@@ -18,40 +20,12 @@ export function Console() {
   const [activeTab, setActiveTab] = useState<ConsoleTab>('console');
   const [search, setSearch] = useState('');
   const [minimized, setMinimized] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [parentHeight, setParentHeight] = useState(600);
   const { clearRuntimeLogs } = useApp();
-
-  // Mesure du parent pour le dimensionnement proportionnel vertical
-  useEffect(() => {
-    const el = containerRef.current?.parentElement;
-    if (!el) return;
-    const measure = () => setParentHeight(el.clientHeight);
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  // Gestion proportionnelle : [workspace, console]
-  // La console prend ~18% de la hauteur disponible par défaut
-  const {
-    getPanelSizes,
-    createVerticalSplitterHandlers,
-  } = useProportionalResize(
-    [0.82, 0.18],
-    parentHeight,
-    [100, 80], // hauteurs min : workspace 100px, console 80px
-  );
-
-  const panels = getPanelSizes();
-  const consoleHeight = panels[1].size;
-  const splitterHandlers = createVerticalSplitterHandlers(0); // workspace ↔ console
 
   // Détermine la couleur de l'onglet actif
   const activeTabColor = tabs.find((t) => t.id === activeTab)?.color;
 
-  const displayHeight = minimized ? 28 : consoleHeight;
+  const displayHeight = minimized ? CONSOLE_MINIMIZED_HEIGHT : CONSOLE_HEIGHT;
 
   return (
     <div
@@ -63,10 +37,9 @@ export function Console() {
         backgroundColor: 'var(--color-surface)',
       }}
     >
-      {/* Barre de redimensionnement — style VS Code */}
+      {/* Barre de la console — double-clic pour minimiser/agrandir */}
       <div
-        className="split-pane__splitter split-pane__splitter--row flex items-center justify-center py-0.5 transition-colors hover:bg-[var(--color-primary)]/10 hover:cursor-row-resize"
-        onMouseDown={minimized ? undefined : splitterHandlers.onMouseDown}
+        className="flex items-center justify-center py-0.5 transition-colors hover:bg-[var(--color-primary)]/10"
         onDoubleClick={() => setMinimized(!minimized)}
         style={{ borderColor: 'var(--color-border)' }}
       >
@@ -134,7 +107,7 @@ export function Console() {
       {/* Contenu (masqué si minimisé) */}
       {!minimized && (
       <div className="flex-1 overflow-auto p-2 font-mono text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-        {activeTab === 'console' && <SerialConsole height={consoleHeight - 60} />}
+        {activeTab === 'console' && <SerialConsole height={CONSOLE_HEIGHT - 60} />}
         {activeTab === 'logs' && <RuntimeLogs />}
         {activeTab === 'errors' && (
           <div className="flex items-center gap-2" style={{ color: 'var(--color-error)' }}>
