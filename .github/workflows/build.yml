@@ -173,9 +173,9 @@ jobs:
           }
           EOF
 
-      - name: Build l'APK Android (release, multi-arch)
+      - name: Build l'APK Android (release)
         working-directory: BlocklyDuino-v2-react
-        run: npx tauri android build --target aarch64 --target armv7 --release
+        run: npx tauri android build --target aarch64 -- --release
         env:
           CI: true
 
