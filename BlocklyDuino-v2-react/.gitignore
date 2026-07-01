@@ -12,15 +12,15 @@ dist
 dist-ssr
 *.local
 
-# Capacitor Android (regénéré via npx cap sync android)
-android/
+# Tauri (généré par tauri build/tauri android build)
+src-tauri/target/
+src-tauri/gen/
 
-# Capacitor iOS (optionnel)
-ios/
-
-# Electron builds (regénéré via electron-builder)
-release/
-*.asar
+# Anciens outils (supprimés)
+# android/  (ancien Capacitor)
+# ios/      (ancien Capacitor)
+# release/  (ancien Electron)
+# *.asar    (ancien Electron)
 
 # Editor directories and files
 .vscode/*
