@@ -5,6 +5,7 @@ import { AiStage } from '../ai/AiStage';
 import { RobotSimulator } from '../simulator/RobotSimulator';
 import { Rover3DCanvas } from '../simulator/Rover3DCanvas';
 import { Rover3DOverlay } from '../simulator/Rover3DOverlay';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { useApp } from '../../context/AppContext';
 import type { AiSprite } from '../../constants';
 
@@ -271,7 +272,9 @@ function SimulatorCard() {
         {use3D ? (
           rover ? (
             <div className="w-full" style={{ height: 320 }}>
-              <Rover3DCanvas rover={rover} trail={roverTrail} />
+              <ErrorBoundary>
+                <Rover3DCanvas rover={rover} trail={roverTrail} />
+              </ErrorBoundary>
             </div>
           ) : (
             <div className="flex items-center justify-center rounded-lg border py-8" style={{ borderColor: 'var(--color-border)' }}>

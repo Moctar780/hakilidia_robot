@@ -144,7 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [blockly, setBlocklyActions] = useState<BlocklyActions | null>(null);
   const [sprites, setSprites] = useState<AiSprite[]>(DEFAULT_AI_PROJECT.sprites);
   const [rovers, setRovers] = useState<Rover3D[]>([{ ...DEFAULT_ROVER_3D }]);
-  const [use3D, setUse3D] = useState(true);
+  const [use3D, setUse3D] = useState(false);
 
   const updateRover = useCallback((updater: (rover: Rover3D) => Rover3D) => {
     setRovers((prev) => {
