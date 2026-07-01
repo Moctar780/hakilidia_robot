@@ -149,3 +149,86 @@ body {
   min-width: 0;
   min-height: 0;
 }
+
+/* ===== Responsive : adaptations mobiles ===== */
+
+/* Sur les écrans < 640px (mobile) : */
+@media (max-width: 639px) {
+  /* Header plus compact */
+  header .h-12 {
+    height: 44px !important;
+  }
+
+  /* Cacher les labels des boutons desktop, ne garder que les icônes */
+  header .md\\:inline {
+    display: none !important;
+  }
+
+  /* Agrandir les zones tactiles des boutons */
+  button, 
+  [role="button"],
+  .cursor-pointer {
+    min-height: 36px;
+  }
+
+  /* Boutons de la toolbar header : padding plus large */
+  header button {
+    padding: 6px 8px !important;
+  }
+
+  /* Sidebar et panel : pleine largeur sur mobile */
+  [class*="fixed"][class*="inset-y-0"][class*="left-0"] {
+    width: 85vw !important;
+    max-width: 320px !important;
+  }
+  [class*="fixed"][class*="inset-y-0"][class*="right-0"] {
+    width: 85vw !important;
+    max-width: 320px !important;
+  }
+
+  /* Console : réduire la hauteur par défaut */
+  .flex.shrink-0.flex-col.border-t {
+    height: 60px !important;
+  }
+}
+
+/* Sur tablettes (640px - 1024px) : */
+@media (min-width: 640px) and (max-width: 1023px) {
+  /* Sidebar et panel : largeur réduite */
+  [class*="fixed"][class*="inset-y-0"][class*="left-0"] {
+    width: 280px !important;
+  }
+  [class*="fixed"][class*="inset-y-0"][class*="right-0"] {
+    width: 320px !important;
+  }
+}
+
+/* ===== Correctifs Tauri Android ===== */
+
+/* Éviter le défilement horizontal intempestif */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Assurer que #root prend tout l'écran dans Tauri WebView */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Zone de clic sécurisée pour les iframes sur Android */
+iframe {
+  touch-action: manipulation;
+}
+
+/* Agrandir les cibles tactiles minimales */
+button, a, [role="button"], input, select, textarea {
+  font-size: 14px; /* pas moins de 14px pour éviter le zoom automatique sur iOS/Android */
+  touch-action: manipulation;
+}
+
+/* Éviter le double-tap zoom sur les boutons */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
