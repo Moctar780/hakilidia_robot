@@ -390,52 +390,59 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
   else if (domain === 'ROVER' && command === 'FORWARD') {
     const steps = Number(args[0] || 2);
     const speed = Math.max(currentRoverSpeed, 50);
-    const force = steps * speed * 0.3; // force proportionnelle à la vitesse et distance
-    // Appliquer une impulsion vers l'avant (direction Z négative dans Three.js)
-    roverPhysics.enqueue({ type: 'applyImpulse', x: 0, y: 0, z: -force });
+    const vel = -steps * speed * 0.05; // vitesse constante vers l'avant
+    roverPhysics.enqueue({ type: 'setLinvel', x: 0, y: 0, z: vel });
     const duration = Math.abs(steps) * 300 * (100 / speed);
     context.log(`Rover avance (physique) — ${Math.round(duration)}ms.`);
     await interruptibleSleep(duration, context.shouldStop);
+    roverPhysics.enqueue({ type: 'stop' });
   } else if (domain === 'ROVER' && command === 'BACKWARD') {
     const steps = Number(args[0] || 2);
     const speed = Math.max(currentRoverSpeed, 50);
-    const force = steps * speed * 0.3;
-    roverPhysics.enqueue({ type: 'applyImpulse', x: 0, y: 0, z: force });
+    const vel = steps * speed * 0.05;
+    roverPhysics.enqueue({ type: 'setLinvel', x: 0, y: 0, z: vel });
     const duration = Math.abs(steps) * 300 * (100 / speed);
     context.log(`Rover recule (physique) — ${Math.round(duration)}ms.`);
     await interruptibleSleep(duration, context.shouldStop);
+    roverPhysics.enqueue({ type: 'stop' });
   } else if (domain === 'ROVER' && command === 'LEFT') {
     const steps = Number(args[0] || 2);
     const speed = Math.max(currentRoverSpeed, 50);
-    const force = steps * speed * 0.3;
-    roverPhysics.enqueue({ type: 'applyImpulse', x: -force, y: 0, z: 0 });
+    const vel = -steps * speed * 0.05;
+    roverPhysics.enqueue({ type: 'setLinvel', x: vel, y: 0, z: 0 });
     const duration = Math.abs(steps) * 300 * (100 / speed);
     context.log(`Rover translate à gauche (physique) — ${Math.round(duration)}ms.`);
     await interruptibleSleep(duration, context.shouldStop);
+    roverPhysics.enqueue({ type: 'stop' });
   } else if (domain === 'ROVER' && command === 'RIGHT') {
     const steps = Number(args[0] || 2);
     const speed = Math.max(currentRoverSpeed, 50);
-    const force = steps * speed * 0.3;
-    roverPhysics.enqueue({ type: 'applyImpulse', x: force, y: 0, z: 0 });
+    const vel = steps * speed * 0.05;
+    roverPhysics.enqueue({ type: 'setLinvel', x: vel, y: 0, z: 0 });
     const duration = Math.abs(steps) * 300 * (100 / speed);
     context.log(`Rover translate à droite (physique) — ${Math.round(duration)}ms.`);
     await interruptibleSleep(duration, context.shouldStop);
+    roverPhysics.enqueue({ type: 'stop' });
   } else if (domain === 'ROVER' && command === 'YAW_LEFT') {
     const degrees = Number(args[0] || 15);
     const speed = Math.max(currentRoverSpeed, 50);
-    const torque = degrees * speed * 0.02;
-    roverPhysics.enqueue({ type: 'applyTorque', y: torque });
+    const angVel = degrees * speed * 0.003;
+    roverPhysics.enqueue({ type: 'setLinvel', x: 0, y: 0, z: 0 });
+    roverPhysics.getRef()?.setAngvel({ x: 0, y: angVel, z: 0 }, true);
     const duration = Math.abs(degrees) * 15 * (100 / speed);
     context.log(`Rover tourne à gauche (physique) — ${Math.round(duration)}ms.`);
     await interruptibleSleep(duration, context.shouldStop);
+    roverPhysics.enqueue({ type: 'stop' });
   } else if (domain === 'ROVER' && command === 'YAW_RIGHT') {
     const degrees = Number(args[0] || 15);
     const speed = Math.max(currentRoverSpeed, 50);
-    const torque = degrees * speed * 0.02;
-    roverPhysics.enqueue({ type: 'applyTorque', y: -torque });
+    const angVel = -degrees * speed * 0.003;
+    roverPhysics.enqueue({ type: 'setLinvel', x: 0, y: 0, z: 0 });
+    roverPhysics.getRef()?.setAngvel({ x: 0, y: angVel, z: 0 }, true);
     const duration = Math.abs(degrees) * 15 * (100 / speed);
     context.log(`Rover tourne à droite (physique) — ${Math.round(duration)}ms.`);
     await interruptibleSleep(duration, context.shouldStop);
+    roverPhysics.enqueue({ type: 'stop' });
   } else if (domain === 'ROVER' && command === 'SET_SPEED') {
     const speed = Number(args[0] || 50);
     currentRoverSpeed = speed;

@@ -66,8 +66,8 @@ export function Rover3DLoadedModel({
       position={[initialPosition.x, 0.5, initialPosition.z]}
       colliders="hull"
       mass={2}
-      linearDamping={1.5}
-      angularDamping={1.0}
+      linearDamping={0.3}
+      angularDamping={0.5}
       enabledRotations={[false, true, false]}
       canSleep={false}
     >
