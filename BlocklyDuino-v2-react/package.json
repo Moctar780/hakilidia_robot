@@ -90,9 +90,7 @@
         }
       ],
       "category": "Development",
-      "desktopName": "blockly-ia",
-      "maintainer": "Hakilidia <contact@hakilidia.cc>",
-      "synopsis": "Interface de programmation robotique par blocs"
+      "maintainer": "Hakilidia <contact@hakilidia.cc>"
     },
     "mac": {
       "target": [
