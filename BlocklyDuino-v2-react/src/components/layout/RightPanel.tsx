@@ -185,7 +185,7 @@ function SimulatorCard() {
   const { sprites, rovers, simulatorMode, setSimulatorMode, runtimeStatus, use3D, setUse3D, setCameraControlOpen } = useApp();
   const [trail, setTrail] = useState<{ x: number; y: number }[]>([]);
   const [roverTrail, setRoverTrail] = useState<{ x: number; z: number }[]>([]);
-  const { simulatorExpanded, setSimulatorExpanded } = useApp();
+  const [expanded, setExpanded] = useState(false);
   const sprite = sprites[0];
   const rover = rovers[0];
 
@@ -240,15 +240,15 @@ function SimulatorCard() {
             >
               <Camera size={14} />
             </button>
-            {/* Agrandir / Réduire */}
+            {/* Agrandir */}
             <button
               type="button"
-              onClick={() => setSimulatorExpanded(!simulatorExpanded)}
+              onClick={() => setExpanded(true)}
               className="inline-flex cursor-pointer items-center justify-center rounded-lg border bg-white p-1.5 transition-all hover:bg-[var(--color-surface-alt)] active:scale-95 dark:bg-[#1E293B]"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
-              title={simulatorExpanded ? 'Réduire le simulateur' : 'Agrandir le simulateur'}
+              title="Agrandir le simulateur"
             >
-              {simulatorExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              <Maximize2 size={14} />
             </button>
             {/* Toggle simulation/physique */}
             <label className="relative inline-flex cursor-pointer items-center">
@@ -271,7 +271,7 @@ function SimulatorCard() {
         {/* Simulateur 3D ou 2D */}
         {use3D ? (
           rover ? (
-            <div className="w-full" style={{ height: simulatorExpanded ? 'calc(100vh - 250px)' : 320 }}>
+            <div className="w-full" style={{ height: 320 }}>
               <ErrorBoundary>
                 <Rover3DCanvas rover={rover} trail={roverTrail} />
               </ErrorBoundary>
@@ -335,7 +335,16 @@ function SimulatorCard() {
       </div>
 
       {/* Overlay plein écran */}
-      {/* Le mode étendu est géré par l'élargissement du panel dans App.tsx */}
+      {expanded && use3D && rover ? (
+        <Rover3DOverlay rover={rover} trail={roverTrail} onClose={() => setExpanded(false)} />
+      ) : expanded && !use3D && sprite ? (
+        <SimulatorOverlay
+          sprite={sprite}
+          trail={trail}
+          simulatorMode={simulatorMode}
+          onClose={() => setExpanded(false)}
+        />
+      ) : null}
     </>
   );
 }

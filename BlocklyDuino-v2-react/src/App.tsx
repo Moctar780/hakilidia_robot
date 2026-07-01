@@ -16,14 +16,13 @@ import { CameraControlOverlay } from './components/simulator/CameraControlOverla
 import { X } from 'lucide-react';
 import './styles/global.css';
 
-/** Tailles fixes des panneaux */
+/** Tailles fixes des panneaux (plus de redimensionnement proportionnel) */
 const SIDEBAR_WIDTH = 280;
 const PANEL_WIDTH = 360;
-const PANEL_WIDTH_EXPANDED = '55%';
 
 function AppLayout() {
   const { sidebarOpen, panelOpen, closeSidebar, closePanel } = useResponsive();
-  const { cameraControlOpen, setCameraControlOpen, simulatorExpanded } = useApp();
+  const { cameraControlOpen, setCameraControlOpen } = useApp();
 
   return (
     <div className="flex h-full flex-col">
@@ -66,7 +65,7 @@ function AppLayout() {
                 fixed inset-y-0 right-0 z-40 max-w-[90vw] transition-transform duration-200
                 lg:relative lg:z-auto lg:translate-x-0 lg:h-full
               `}
-          style={{ width: simulatorExpanded ? PANEL_WIDTH_EXPANDED : PANEL_WIDTH, flexShrink: 0 }}
+          style={{ width: PANEL_WIDTH, flexShrink: 0 }}
         >
           <div className="relative h-full">
             <button

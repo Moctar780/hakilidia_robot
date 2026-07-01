@@ -96,8 +96,6 @@ type AppContextValue = {
   stopAiProgram: () => void;
   simulatorMode: boolean;
   setSimulatorMode: (mode: boolean) => void;
-  simulatorExpanded: boolean;
-  setSimulatorExpanded: (expanded: boolean) => void;
   runtimeLogs: string[];
   appendRuntimeLog: (message: string) => void;
   clearRuntimeLogs: () => void;
@@ -237,7 +235,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cameraGestureActive, setCameraGestureActive] = useState(false);
   const [cameraGestureDirection, setCameraGestureDirection] = useState<CameraGestureCommand>('stop');
   const [simulatorMode, setSimulatorMode] = useState(true);
-  const [simulatorExpanded, setSimulatorExpanded] = useState(false);
   const [serialOutput, setSerialOutput] = useState('Console série prête...\n');
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [serviceUrl, setServiceUrl] = useState(resolveServiceUrl(ARDUINO_SERVICE_DEFAULT_URL));
@@ -713,8 +710,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cameraGestureDirection,
       simulatorMode,
       setSimulatorMode,
-      simulatorExpanded,
-      setSimulatorExpanded,
       serialOutput,
       setSerialOutput,
       ports,
@@ -783,8 +778,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cameraGestureDirection,
       simulatorMode,
       setSimulatorMode,
-      simulatorExpanded,
-      setSimulatorExpanded,
       serialOutput,
       ports,
       serviceUrl,
