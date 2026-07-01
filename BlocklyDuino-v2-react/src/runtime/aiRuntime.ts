@@ -390,7 +390,6 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = (rover.rotation.y * Math.PI) / 180;
-      currentRoverSpeed = rover.speed;
       return {
         ...rover,
         position: {
@@ -398,10 +397,9 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
           y: rover.position.y,
           z: rover.position.z + Math.cos(angleRad) * steps,
         },
-        // Ne PAS modifier speed ici
       };
     });
-    const speed = Math.max(currentRoverSpeed, 1);
+    const speed = Math.max(currentRoverSpeed, 50);
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover avance de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
@@ -409,7 +407,6 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = (rover.rotation.y * Math.PI) / 180;
-      currentRoverSpeed = rover.speed;
       return {
         ...rover,
         position: {
@@ -419,7 +416,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
         },
       };
     });
-    const speed = Math.max(currentRoverSpeed, 1);
+    const speed = Math.max(currentRoverSpeed, 50);
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover recule de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
@@ -427,7 +424,6 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = ((rover.rotation.y - 90) * Math.PI) / 180;
-      currentRoverSpeed = rover.speed;
       return {
         ...rover,
         position: {
@@ -437,7 +433,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
         },
       };
     });
-    const speed = Math.max(currentRoverSpeed, 1);
+    const speed = Math.max(currentRoverSpeed, 50);
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover translate à gauche de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
@@ -445,7 +441,6 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = ((rover.rotation.y + 90) * Math.PI) / 180;
-      currentRoverSpeed = rover.speed;
       return {
         ...rover,
         position: {
@@ -455,33 +450,31 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
         },
       };
     });
-    const speed = Math.max(currentRoverSpeed, 1);
+    const speed = Math.max(currentRoverSpeed, 50);
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover translate à droite de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
   } else if (domain === 'ROVER' && command === 'YAW_LEFT') {
     const degrees = Number(args[0] || 15);
     context.updateRover((rover) => {
-      currentRoverSpeed = rover.speed;
       return {
         ...rover,
         rotation: { ...rover.rotation, y: ((rover.rotation.y - degrees) % 360) },
       };
     });
-    const speed = Math.max(currentRoverSpeed, 1);
+    const speed = Math.max(currentRoverSpeed, 50);
     const duration = Math.abs(degrees) * 20 * (100 / speed);
     context.log(`Rover tourne à gauche de ${degrees}° (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
   } else if (domain === 'ROVER' && command === 'YAW_RIGHT') {
     const degrees = Number(args[0] || 15);
     context.updateRover((rover) => {
-      currentRoverSpeed = rover.speed;
       return {
         ...rover,
         rotation: { ...rover.rotation, y: ((rover.rotation.y + degrees) % 360) },
       };
     });
-    const speed = Math.max(currentRoverSpeed, 1);
+    const speed = Math.max(currentRoverSpeed, 50);
     const duration = Math.abs(degrees) * 20 * (100 / speed);
     context.log(`Rover tourne à droite de ${degrees}° (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
