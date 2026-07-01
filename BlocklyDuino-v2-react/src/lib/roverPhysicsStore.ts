@@ -1,99 +1,105 @@
 /**
- * Store module-level pour partager la référence du RigidBody Rapier
- * entre le composant 3D et le runtime d'exécution.
- *
- * Le Rover3DLoadedModel setRef() au montage.
- * Le runtime (aiRuntime.ts) utilise applyForce() / applyImpulse() etc.
- * L'interface peut s'abonner aux mises à jour de position pour les trails.
+ * Store module-level reliant le runtime (aiRuntime.ts) au RobotPhysics.
+ * Les actions sont converties en commandes moteur (setMotorSpeeds).
+ * Les abonnés (trail, UI) recoivent la position synchro depuis Rapier.
  */
+import { RobotPhysics } from './physics/RobotPhysics';
+import { physicsManager } from './physics/PhysicsManager';
 
-import type { RigidBodyApi } from '@react-three/rapier';
-
-type PhysicsAction =
-  | { type: 'applyImpulse'; x: number; y: number; z: number }
-  | { type: 'applyTorque'; y: number }
-  | { type: 'setLinvel'; x: number; y: number; z: number }
-  | { type: 'setTranslation'; x: number; y: number; z: number }
-  | { type: 'reset' }
-  | { type: 'stop' };
-
-const ROVER_SCALE = 0.35;
-
-let rigidBodyRef: RigidBodyApi | null = null;
+let robot: RobotPhysics | null = null;
 let lastGridPosition = { x: 0, z: 0 };
 const subscribers = new Set<() => void>();
 
+const ROVER_SCALE = 0.35;
+const SPEED_FACTOR = 0.8; // rad/s par unité de vitesse
+
 export const roverPhysics = {
-  setRef(ref: RigidBodyApi | null) {
-    rigidBodyRef = ref;
+  /** Initialise la physique et crée le robot (appelé 1 fois au montage) */
+  async init(startX = 0, startZ = 0) {
+    if (physicsManager.isReady) return;
+    await physicsManager.init(-9.81);
+    physicsManager.createGround(100);
+    robot = new RobotPhysics({
+      x: startX * ROVER_SCALE,
+      y: 0.5,
+      z: startZ * ROVER_SCALE,
+    });
+    console.log('[roverPhysics] Robot physique créé.');
   },
 
-  getRef() {
-    return rigidBodyRef;
+  getRobot() {
+    return robot;
   },
 
-  /** S'abonner aux changements de position (pour le trail) */
+  getPhysicsManager() {
+    return physicsManager;
+  },
+
+  /** S'abonner aux mises à jour de position (pour le trail) */
   subscribe(cb: () => void) {
     subscribers.add(cb);
     return () => subscribers.delete(cb);
   },
 
-  /** Notifier les abonnés que la position a changé */
-  notify() {
+  /** Appelé à chaque frame pour synchroniser la position grille */
+  sync() {
+    if (!robot) return;
+    const pos = robot.getPosition();
+    lastGridPosition = {
+      x: pos.x / ROVER_SCALE,
+      z: pos.z / ROVER_SCALE,
+    };
     subscribers.forEach((cb) => cb());
   },
 
-  /** Applique une action différée (sera exécutée dans le prochain frame) */
-  enqueue(action: PhysicsAction) {
-    if (!rigidBodyRef) return;
-    switch (action.type) {
-      case 'applyImpulse':
-        rigidBodyRef.applyImpulse({ x: action.x, y: action.y, z: action.z }, true);
-        break;
-      case 'applyTorque':
-        rigidBodyRef.applyTorqueImpulse({ x: 0, y: action.y, z: 0 }, true);
-        break;
-      case 'setLinvel':
-        rigidBodyRef.setLinvel({ x: action.x, y: action.y, z: action.z }, true);
-        break;
-      case 'setTranslation':
-        rigidBodyRef.setTranslation({ x: action.x, y: action.y, z: action.z }, true);
-        break;
-      case 'reset':
-        rigidBodyRef.setTranslation({ x: 0, y: 0.5, z: 0 }, true);
-        rigidBodyRef.setLinvel({ x: 0, y: 0, z: 0 }, true);
-        rigidBodyRef.setAngvel({ x: 0, y: 0, z: 0 }, true);
-        break;
-      case 'stop':
-        rigidBodyRef.setLinvel({ x: 0, y: 0, z: 0 }, true);
-        rigidBodyRef.setAngvel({ x: 0, y: 0, z: 0 }, true);
-        break;
-    }
-  },
-
-  /** Met à jour la dernière position grille depuis useFrame */
-  syncPosition(gridX: number, gridZ: number) {
-    lastGridPosition = { x: gridX, z: gridZ };
-    this.notify();
-  },
-
-  /** Lit la dernière position grille connue */
-  getGridPosition(): { x: number; z: number } {
+  getGridPosition() {
     return lastGridPosition;
   },
 
-  /** Lit la position actuelle du corps physique */
-  getPosition(): { x: number; z: number; y: number } | null {
-    if (!rigidBodyRef) return null;
-    const t = rigidBodyRef.translation();
-    return { x: t.x, y: t.y, z: t.z };
+  /** Avancer : les deux roues tournent dans le même sens */
+  forward(speed: number) {
+    const rads = speed * SPEED_FACTOR;
+    robot?.setMotorSpeeds(-rads, -rads);
   },
 
-  /** Lit la rotation Yaw actuelle */
-  getRotation(): { y: number } | null {
-    if (!rigidBodyRef) return null;
-    const r = rigidBodyRef.rotation();
-    const yaw = 2 * Math.atan2(r.z, r.w);
-    return { y: (yaw * 180) / Math.PI };
+  /** Reculer */
+  backward(speed: number) {
+    const rads = speed * SPEED_FACTOR;
+    robot?.setMotorSpeeds(rads, rads);
+  },
+
+  /** Translation latérale gauche */
+  strafeLeft(speed: number) {
+    const rads = speed * SPEED_FACTOR;
+    robot?.setMotorSpeeds(-rads, rads);
+  },
+
+  /** Translation latérale droite */
+  strafeRight(speed: number) {
+    const rads = speed * SPEED_FACTOR;
+    robot?.setMotorSpeeds(rads, -rads);
+  },
+
+  /** Pivot à gauche */
+  rotateLeft(speed: number) {
+    const rads = speed * SPEED_FACTOR * 0.5;
+    robot?.setMotorSpeeds(-rads, rads);
+  },
+
+  /** Pivot à droite */
+  rotateRight(speed: number) {
+    const rads = speed * SPEED_FACTOR * 0.5;
+    robot?.setMotorSpeeds(rads, -rads);
+  },
+
+  /** Arrêt */
+  stop() {
+    robot?.stop();
+  },
+
+  /** Réinitialiser la position */
+  reset() {
+    this.stop();
   },
 };
+

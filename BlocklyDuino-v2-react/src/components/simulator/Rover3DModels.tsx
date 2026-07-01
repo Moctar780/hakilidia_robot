@@ -1,8 +1,7 @@
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, type ReactNode } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { RigidBody } from '@react-three/rapier';
-import { type RigidBodyApi } from '@react-three/rapier';
+import { type Group, type Mesh } from 'three';
 import type { Rover3D } from '../../constants';
 import { roverPhysics } from '../../lib/roverPhysicsStore';
 
@@ -10,74 +9,49 @@ const ROVER_SCALE = 0.35;
 const ENV_SCALE = 0.9;
 
 /**
- * Charge et affiche le modèle 3D du rover avec physique Rapier.
- * Le corps est dynamique : il réagit aux forces, impulsions et collisions.
- * La position/rotation lue depuis Rapier remplace l'ancien lerp manuel.
+ * Charge le modèle GLB du rover et expose ses refs (groupe châssis + roues)
+ * pour que PhysicsBridge les lie aux corps Rapier.
  */
 export function Rover3DLoadedModel({
   rover,
   prevPositionRef,
+  children,
 }: {
   rover: Rover3D;
   prevPositionRef: React.MutableRefObject<{ x: number; z: number }>;
+  children?: (roverGroup: React.RefObject<Group | null>, leftWheel: React.RefObject<Group | null>, rightWheel: React.RefObject<Group | null>) => ReactNode;
 }) {
-  const rigidBodyRef = useRef<RigidBodyApi>(null);
+  const roverGroupRef = useRef<Group>(null);
+  const leftWheelRef = useRef<Group>(null);
+  const rightWheelRef = useRef<Group>(null);
   const { scene } = useGLTF('/models/rover.glb');
   const model = useMemo(() => scene?.clone() ?? null, [scene]);
-  const initialPosition = useMemo(() => ({
-    x: rover.position.x * ROVER_SCALE,
-    z: rover.position.z * ROVER_SCALE,
-  }), []);
 
-  // Exposer le ref au store pour que le runtime puisse appliquer des forces
-  useEffect(() => {
-    roverPhysics.setRef(rigidBodyRef.current);
-    return () => roverPhysics.setRef(null);
-  }, []);
-
-  // Synchroniser la position initiale au premier frame
-  const initialSync = useRef(true);
+  // À chaque frame : si physique pas prête, on place le modèle à la position initiale
   useFrame(() => {
-    if (!rigidBodyRef.current) return;
-    if (initialSync.current) {
-      rigidBodyRef.current.setTranslation(
-        { x: initialPosition.x, y: 0.5, z: initialPosition.z },
-        true
-      );
-      initialSync.current = false;
-    }
-
-    // Lire la position réelle depuis Rapier pour le trail et le store
-    const t = rigidBodyRef.current.translation();
-    const r = rigidBodyRef.current.rotation();
-    const yaw = 2 * Math.atan2(r.z, r.w);
-    const gridX = t.x / ROVER_SCALE;
-    const gridZ = t.z / ROVER_SCALE;
-    prevPositionRef.current = { x: gridX, z: gridZ };
-    roverPhysics.syncPosition(gridX, gridZ);
+    if (!roverGroupRef.current) return;
+    // La position est gérée par PhysicsBridge → bindings
+    // Mais on met à jour prevPositionRef pour le trail
+    const pos = roverPhysics.getGridPosition();
+    prevPositionRef.current = pos;
   });
 
   if (!model) return null;
 
   return (
-    <RigidBody
-      ref={rigidBodyRef}
-      type="dynamic"
-      position={[initialPosition.x, 0.5, initialPosition.z]}
-      colliders="hull"
-      mass={2}
-      linearDamping={0.3}
-      angularDamping={0.5}
-      enabledRotations={[false, true, false]}
-      canSleep={false}
-    >
-      <primitive
-        object={model}
-        scale={[ROVER_SCALE, ROVER_SCALE, ROVER_SCALE]}
-        castShadow
-        receiveShadow
-      />
-    </RigidBody>
+    <group>
+      {/* Groupe châssis (sera bindé au chassisBody Rapier) */}
+      <group ref={roverGroupRef} scale={ROVER_SCALE}>
+        <primitive object={model} castShadow receiveShadow />
+      </group>
+
+      {/* Roues visuelles (seront bindées aux wheel bodies Rapier) */}
+      <group ref={leftWheelRef} scale={ROVER_SCALE} />
+      <group ref={rightWheelRef} scale={ROVER_SCALE} />
+
+      {/* PhysicsBridge reçoit les refs via render props */}
+      {children?.(roverGroupRef, leftWheelRef, rightWheelRef)}
+    </group>
   );
 }
 
