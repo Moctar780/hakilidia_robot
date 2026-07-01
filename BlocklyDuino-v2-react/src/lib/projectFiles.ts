@@ -18,7 +18,7 @@ export type BlocklyProjectFile = {
   updatedAt: string;
   /** Métadonnées */
   meta: {
-    app: 'BlocklyDuino IA';
+    app: 'Hakilidia Blockly';
     blocksCount: number;
   };
 };
@@ -50,7 +50,7 @@ export function createProjectFile(
     createdAt,
     updatedAt: new Date().toISOString(),
     meta: {
-      app: 'BlocklyDuino IA',
+      app: 'Hakilidia Blockly',
       blocksCount: countBlocks(workspaceXml),
     },
   };

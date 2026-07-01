@@ -41,8 +41,8 @@ export function Header() {
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-2 md:gap-3">
-          <img src="/blockly-static/blocklyduino/media/logo_only2.png" alt="Blockly IA" className="h-7 w-7 md:h-8 md:w-8" />
-          <span className="hidden text-base font-semibold tracking-tight sm:inline md:text-lg" style={{ color: 'var(--color-text)' }}>Blockly IA</span>
+          <img src="/blockly-static/blocklyduino/media/logo_only2.png" alt="Hakilidia Blockly" className="h-7 w-7 md:h-8 md:w-8" />
+          <span className="hidden text-base font-semibold tracking-tight sm:inline md:text-lg" style={{ color: 'var(--color-text)' }}>Hakilidia Blockly</span>
         </div>
         <div className="ml-auto flex items-center gap-1">
           <div className="hidden md:flex md:items-center md:gap-1">

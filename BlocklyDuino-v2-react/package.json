@@ -2,7 +2,7 @@
   "name": "blocklyduino-v2-react",
   "private": true,
   "version": "0.1.0",
-  "description": "Blockly IA - Interface de programmation robotique par blocs",
+  "description": "Hakilidia Blockly - Interface de programmation robotique par blocs",
   "author": "Hakilidia <contact@hakilidia.cc>",
   "homepage": "https://github.com/Moctar780/hakilidia_robot",
   "type": "module",

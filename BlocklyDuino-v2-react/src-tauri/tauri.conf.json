@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Blockly IA",
+  "productName": "Hakilidia Blockly",
   "version": "0.1.0",
   "identifier": "cc.hakilidia.blocklyia",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Blockly IA",
+        "title": "Hakilidia Blockly",
         "width": 1400,
         "height": 900,
         "minWidth": 1024,
