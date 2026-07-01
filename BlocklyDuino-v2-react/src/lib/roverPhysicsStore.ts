@@ -56,40 +56,34 @@ export const roverPhysics = {
     return lastGridPosition;
   },
 
-  /** Avancer : les deux roues tournent dans le même sens */
+  /** Avancer */
   forward(speed: number) {
-    const rads = speed * SPEED_FACTOR;
-    robot?.setMotorSpeeds(-rads, -rads);
+    robot?.forward(speed);
   },
 
   /** Reculer */
   backward(speed: number) {
-    const rads = speed * SPEED_FACTOR;
-    robot?.setMotorSpeeds(rads, rads);
+    robot?.backward(speed);
   },
 
   /** Translation latérale gauche */
   strafeLeft(speed: number) {
-    const rads = speed * SPEED_FACTOR;
-    robot?.setMotorSpeeds(-rads, rads);
+    robot?.strafeLeft(speed);
   },
 
   /** Translation latérale droite */
   strafeRight(speed: number) {
-    const rads = speed * SPEED_FACTOR;
-    robot?.setMotorSpeeds(rads, -rads);
+    robot?.strafeRight(speed);
   },
 
   /** Pivot à gauche */
   rotateLeft(speed: number) {
-    const rads = speed * SPEED_FACTOR * 0.5;
-    robot?.setMotorSpeeds(-rads, rads);
+    robot?.rotateLeft(speed);
   },
 
   /** Pivot à droite */
   rotateRight(speed: number) {
-    const rads = speed * SPEED_FACTOR * 0.5;
-    robot?.setMotorSpeeds(rads, -rads);
+    robot?.rotateRight(speed);
   },
 
   /** Arrêt */

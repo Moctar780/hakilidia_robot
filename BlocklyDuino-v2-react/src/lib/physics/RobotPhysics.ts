@@ -1,21 +1,17 @@
 /**
- * RobotPhysics — crée le châssis + 2 roues motrices avec joints Revolute.
- * Permet de contrôler le robot par vitesse des moteurs (rad/s).
+ * RobotPhysics — châssis dynamique + roues suiveuses via ImpulseJoint.
+ * Contrôle par vitesse linéaire/angulaire appliquée directement au châssis.
+ * Les roues sont liées par des joints pour suivre le châssis visuellement.
  */
 import RAPIER from '@dimforge/rapier3d-compat';
 import { physicsManager } from './PhysicsManager';
-
-export type WheelJoint = {
-  body: RAPIER.RigidBody;
-  joint: RAPIER.Joint;
-};
 
 export type WheelSides = 'left' | 'right';
 
 export class RobotPhysics {
   chassisBody!: RAPIER.RigidBody;
-  joints: Record<WheelSides, WheelJoint> = {} as Record<WheelSides, WheelJoint>;
-  private maxTorque = 10.0;
+  wheelBodies: Record<WheelSides, RAPIER.RigidBody> = {} as Record<WheelSides, RAPIER.RigidBody>;
+  private speedFactor = 2.5; // m/s par unité de vitesse
 
   constructor(pos: { x: number; y: number; z: number }) {
     this.createRobot(pos);
@@ -28,15 +24,14 @@ export class RobotPhysics {
     // 1. CHÂSSIS
     const chassisDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(pos.x, pos.y, pos.z)
-      .setLinearDamping(0.3)
-      .setAngularDamping(1.5);
+      .setLinearDamping(0.5)
+      .setAngularDamping(2.0);
     this.chassisBody = world.createRigidBody(chassisDesc);
 
-    // Boîte de collision du châssis (largeur: 1, hauteur: 0.4, longueur: 1.6) * échelle
     const chassisCollider = RAPIER.ColliderDesc.cuboid(0.5 * 0.7, 0.2 * 0.7, 0.8 * 0.7);
     world.createCollider(chassisCollider, this.chassisBody);
 
-    // 2. ROUES
+    // 2. ROUES (liées au châssis par ImpulseJoint pour suivre ses mouvements)
     const wheelConfigs: { name: WheelSides; x: number; z: number }[] = [
       { name: 'left', x: -0.6, z: 0.5 },
       { name: 'right', x: 0.6, z: 0.5 },
@@ -45,38 +40,63 @@ export class RobotPhysics {
     for (const config of wheelConfigs) {
       const wheelDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(pos.x + config.x, pos.y - 0.15, pos.z + config.z)
-        .setLinearDamping(0.1)
-        .setAngularDamping(0.5);
+        .setLinearDamping(5.0) // damping fort pour que la roue suive le châssis
+        .setAngularDamping(0.3);
       const wheelBody = world.createRigidBody(wheelDesc);
 
-      // Cylindre de collision (rayon: 0.3, hauteur: 0.15)
       const wheelCollider = RAPIER.ColliderDesc.cylinder(0.075, 0.3);
       world.createCollider(wheelCollider, wheelBody);
 
-      // 3. JOINT REVOLUTE (pivot)
+      // Joint Revolute pour attacher la roue au châssis (pivot libre)
       const anchorChassis = { x: config.x, y: -0.15, z: config.z };
       const anchorWheel = { x: 0, y: 0, z: 0 };
-      const axis = { x: 1, y: 0, z: 0 }; // Rotation axe X
-
+      const axis = { x: 1, y: 0, z: 0 };
       const jointData = RAPIER.JointData.revolute(anchorChassis, anchorWheel, axis);
-      const joint = world.createJoint(jointData, this.chassisBody, wheelBody);
+      world.createImpulseJoint(jointData, this.chassisBody, wheelBody, true);
 
-      // Moteur par défaut : vitesse 0, couple max
-      joint.configureMotorVelocity(0, this.maxTorque);
-
-      this.joints[config.name] = { body: wheelBody, joint };
+      this.wheelBodies[config.name] = wheelBody;
     }
   }
 
-  /** Définit la vitesse des deux moteurs (rad/s) */
-  setMotorSpeeds(leftSpeed: number, rightSpeed: number) {
-    if (this.joints.left) this.joints.left.joint.configureMotorVelocity(leftSpeed, this.maxTorque);
-    if (this.joints.right) this.joints.right.joint.configureMotorVelocity(rightSpeed, this.maxTorque);
+  /** Applique une vélocité linéaire au châssis (dans le repère local) */
+  setChassisVelocity(localX: number, localZ: number) {
+    // Transformer la vélocité locale → monde en utilisant la rotation du châssis
+    const rot = this.chassisBody.rotation();
+    const sin = 2 * (rot.w * rot.y + rot.x * rot.z);
+    const cos = 1 - 2 * (rot.y * rot.y + rot.z * rot.z);
+    const worldX = localX * cos - localZ * sin;
+    const worldZ = localX * sin + localZ * cos;
+
+    this.chassisBody.setLinvel({ x: worldX * this.speedFactor, y: 0, z: worldZ * this.speedFactor }, true);
   }
 
-  /** Arrêt immédiat des moteurs */
+  /** Applique une vélocité angulaire au châssis */
+  setChassisAngularVelocity(yawSpeed: number) {
+    this.chassisBody.setAngvel({ x: 0, y: yawSpeed * this.speedFactor * 0.5, z: 0 }, true);
+  }
+
+  /** Avancer */
+  forward(speed: number) { this.setChassisVelocity(0, -speed); }
+
+  /** Reculer */
+  backward(speed: number) { this.setChassisVelocity(0, speed); }
+
+  /** Translation latérale gauche */
+  strafeLeft(speed: number) { this.setChassisVelocity(-speed, 0); }
+
+  /** Translation latérale droite */
+  strafeRight(speed: number) { this.setChassisVelocity(speed, 0); }
+
+  /** Pivot à gauche */
+  rotateLeft(speed: number) { this.setChassisAngularVelocity(speed); }
+
+  /** Pivot à droite */
+  rotateRight(speed: number) { this.setChassisAngularVelocity(-speed); }
+
+  /** Arrêt */
   stop() {
-    this.setMotorSpeeds(0, 0);
+    this.chassisBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    this.chassisBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
   }
 
   /** Position actuelle du châssis */

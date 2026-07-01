@@ -17,7 +17,7 @@ export class PhysicsManager {
   private initialized = false;
 
   async init(gravityY = -9.81) {
-    await RAPIER.init();
+    await RAPIER.init({});
     this.world = new RAPIER.World({ x: 0, y: gravityY, z: 0 });
     this.initialized = true;
     console.log('[PhysicsManager] Moteur physique Rapier prêt.');
