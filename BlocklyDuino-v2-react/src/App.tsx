@@ -14,76 +14,21 @@ import { SettingsPanel } from './components/panels/SettingsPanel';
 import { ModelPreloader } from './components/simulator/ModelPreloader';
 import { CameraControlOverlay } from './components/simulator/CameraControlOverlay';
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useProportionalResize } from './hooks/useProportionalResize';
 import './styles/global.css';
 
-/** Tailles minimales des 3 panneaux horizontaux : sidebar, centre, right panel */
-const MIN_SIZES = [180, 200, 280];
-
-/**
- * Compteur de splitters pour collisions entre overlays mobiles et handlers.
- * On désactive le resize proportionnel quand un overlay mobile est ouvert
- * pour éviter les interférences.
- */
-
-function Splitter({
-  handlers,
-  className = '',
-}: {
-  handlers: { onMouseDown: (e: React.MouseEvent | MouseEvent) => void; onDoubleClick: () => void };
-  className?: string;
-}) {
-  return (
-    <div
-      className={`split-pane__splitter split-pane__splitter--col ${className}`}
-      onMouseDown={handlers.onMouseDown}
-      onDoubleClick={handlers.onDoubleClick}
-    >
-      <div className="split-pane__splitter-bar" />
-    </div>
-  );
-}
+/** Tailles fixes des panneaux (plus de redimensionnement proportionnel) */
+const SIDEBAR_WIDTH = 280;
+const PANEL_WIDTH = 360;
 
 function AppLayout() {
   const { sidebarOpen, panelOpen, closeSidebar, closePanel } = useResponsive();
   const { cameraControlOpen, setCameraControlOpen } = useApp();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [mainWidth, setMainWidth] = useState(1200);
-
-  // Mesure de la largeur disponible pour les panneaux
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const measure = () => setMainWidth(el.clientWidth);
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  // Gestion proportionnelle des 3 panneaux (sidebar, centre, right panel)
-  // Ratios par défaut : ~18% sidebar, ~52% centre, ~30% panel
-  const {
-    getPanelSizes,
-    createSplitterHandlers,
-  } = useProportionalResize(
-    [0.18, 0.52, 0.30],
-    mainWidth,
-    MIN_SIZES,
-  );
-
-  const panels = getPanelSizes();
-
-  // Les handlers des splitters sont stables (memoïsés dans le hook)
-  const splitter0 = createSplitterHandlers(0); // sidebar ↔ centre
-  const splitter1 = createSplitterHandlers(1); // centre ↔ right panel
 
   return (
     <div className="flex h-full flex-col">
       <Header />
 
-      <div ref={containerRef} className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {/* ===== SIDEBAR ===== */}
         <div
           className={`
@@ -91,13 +36,10 @@ function AppLayout() {
                 fixed inset-y-0 left-0 z-40 transition-transform duration-200
                 md:relative md:z-auto md:translate-x-0 md:h-full
               `}
-          style={{ width: panels[0].size, flexShrink: 0 }}
+          style={{ width: SIDEBAR_WIDTH, flexShrink: 0 }}
         >
           <Sidebar />
         </div>
-
-        {/* Splitter sidebar ↔ centre (masqué sur mobile) */}
-        <Splitter handlers={splitter0} className="hidden md:block" />
 
         {/* Overlay mobile sidebar */}
         {sidebarOpen && (
@@ -116,9 +58,6 @@ function AppLayout() {
           <Console />
         </div>
 
-        {/* Splitter centre ↔ right panel (masqué sur tablette et mobile) */}
-        <Splitter handlers={splitter1} className="hidden lg:block" />
-
         {/* ===== RIGHT PANEL ===== */}
         <div
           className={`
@@ -126,7 +65,7 @@ function AppLayout() {
                 fixed inset-y-0 right-0 z-40 max-w-[90vw] transition-transform duration-200
                 lg:relative lg:z-auto lg:translate-x-0 lg:h-full
               `}
-          style={{ width: panels[2].size, flexShrink: 0 }}
+          style={{ width: PANEL_WIDTH, flexShrink: 0 }}
         >
           <div className="relative h-full">
             <button
