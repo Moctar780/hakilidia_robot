@@ -386,7 +386,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
      La durée est fonction de la distance/angle et de la vitesse configurée.
      ========================================================================== */
 
-  else if (command === 'ROVER_FORWARD') {
+  else if (domain === 'ROVER' && command === 'FORWARD') {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = (rover.rotation.y * Math.PI) / 180;
@@ -405,7 +405,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover avance de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
-  } else if (command === 'ROVER_BACKWARD') {
+  } else if (domain === 'ROVER' && command === 'BACKWARD') {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = (rover.rotation.y * Math.PI) / 180;
@@ -423,7 +423,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover recule de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
-  } else if (command === 'ROVER_LEFT') {
+  } else if (domain === 'ROVER' && command === 'LEFT') {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = ((rover.rotation.y - 90) * Math.PI) / 180;
@@ -441,7 +441,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover translate à gauche de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
-  } else if (command === 'ROVER_RIGHT') {
+  } else if (domain === 'ROVER' && command === 'RIGHT') {
     const steps = Number(args[0] || 2);
     context.updateRover((rover) => {
       const angleRad = ((rover.rotation.y + 90) * Math.PI) / 180;
@@ -459,7 +459,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const duration = Math.abs(steps) * 400 * (100 / speed);
     context.log(`Rover translate à droite de ${steps} unités (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
-  } else if (command === 'ROVER_YAW_LEFT') {
+  } else if (domain === 'ROVER' && command === 'YAW_LEFT') {
     const degrees = Number(args[0] || 15);
     context.updateRover((rover) => {
       currentRoverSpeed = rover.speed;
@@ -472,7 +472,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const duration = Math.abs(degrees) * 20 * (100 / speed);
     context.log(`Rover tourne à gauche de ${degrees}° (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
-  } else if (command === 'ROVER_YAW_RIGHT') {
+  } else if (domain === 'ROVER' && command === 'YAW_RIGHT') {
     const degrees = Number(args[0] || 15);
     context.updateRover((rover) => {
       currentRoverSpeed = rover.speed;
@@ -485,16 +485,16 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     const duration = Math.abs(degrees) * 20 * (100 / speed);
     context.log(`Rover tourne à droite de ${degrees}° (${Math.round(duration)}ms).`);
     await interruptibleSleep(duration, () => context.shouldStop());
-  } else if (command === 'ROVER_SET_SPEED') {
+  } else if (domain === 'ROVER' && command === 'SET_SPEED') {
     const speed = Number(args[0] || 50);
     currentRoverSpeed = speed;
     context.updateRover((rover) => ({ ...rover, speed }));
     context.log(`Vitesse rover réglée à ${speed}%.`);
-  } else if (command === 'ROVER_STOP') {
+  } else if (domain === 'ROVER' && command === 'STOP') {
     context.updateRover((rover) => ({ ...rover, speed: 0 }));
     currentRoverSpeed = 0;
     context.log('Rover arrêté.');
-  } else if (command === 'ROVER_GRIPPER_OPEN') {
+  } else if (domain === 'ROVER' && command === 'GRIPPER_OPEN') {
     const width = Number(args[0] || 3);
     context.updateRover((rover) => ({
       ...rover,
@@ -503,7 +503,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     }));
     context.log(`Pince rover ouverte (${width} cm).`);
     await interruptibleSleep(500, () => context.shouldStop());
-  } else if (command === 'ROVER_GRIPPER_CLOSE') {
+  } else if (domain === 'ROVER' && command === 'GRIPPER_CLOSE') {
     context.updateRover((rover) => ({
       ...rover,
       gripperState: 'closed',
@@ -511,7 +511,7 @@ async function executeCommand(commandLine: string, context: RuntimeContext) {
     }));
     context.log('Pince rover fermée.');
     await interruptibleSleep(500, () => context.shouldStop());
-  } else if (command === 'ROVER_READ_ULTRASONIC') {
+  } else if (domain === 'ROVER' && command === 'READ_ULTRASONIC') {
     context.log('Capteur ultrason: simulation active, pas d\'obstacle détecté.');
   } else {
     context.log(`Commande inconnue: ${command}`);
@@ -554,13 +554,17 @@ async function executeLines(lines: string[], context: RuntimeContext, start = 0,
       continue;
     }
 
-    if (line.startsWith('AI_') || line.startsWith('ROBOT_') || line.startsWith('PHONE_')) {
+    if (line.startsWith('AI_') || line.startsWith('ROBOT_') || line.startsWith('PHONE_') || line.startsWith('ROVER_')) {
       await executeCommand(line, context);
     }
   }
 }
 
 export async function runAiProgram(code: string, context: RuntimeContext) {
+  // Réinitialiser l'état global pour éviter les interférences entre exécutions
+  spriteDirection = 90;
+  currentRoverSpeed = 50;
+
   const lines = code.split('\n');
   if (countExecutableCommands(lines) === 0) {
     context.log('Aucune commande IA, Robot ou Téléphone trouvée. Ajoute des blocs des catégories IA, Robot ou Capteurs téléphone.');

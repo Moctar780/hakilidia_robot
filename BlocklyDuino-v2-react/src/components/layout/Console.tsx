@@ -29,7 +29,6 @@ export function Console() {
 
   return (
     <div
-      ref={containerRef}
       className="flex shrink-0 flex-col border-t"
       style={{
         height: displayHeight,
