@@ -65,7 +65,7 @@ export function Console() {
     >
       {/* Barre de redimensionnement — style VS Code */}
       <div
-        className="split-pane__splitter split-pane__splitter--row flex cursor-row-resize items-center justify-center py-0.5 transition-colors hover:bg-[var(--color-primary)]/10"
+        className="split-pane__splitter split-pane__splitter--row flex items-center justify-center py-0.5 transition-colors hover:bg-[var(--color-primary)]/10 hover:cursor-row-resize"
         onMouseDown={minimized ? undefined : splitterHandlers.onMouseDown}
         onDoubleClick={() => setMinimized(!minimized)}
         style={{ borderColor: 'var(--color-border)' }}
