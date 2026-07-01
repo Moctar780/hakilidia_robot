@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Float } from '@react-three/drei';
+import { Physics } from '@react-three/rapier';
 import { Rover3DScene } from './Rover3DScene';
 import { Rover3DTrail } from './Rover3DTrail';
 import { Rover3DLoadedModel, EnvironmentModel } from './Rover3DModels';
@@ -66,10 +67,16 @@ export function Rover3DCanvas({
           far={6}
         />
 
-        {/* Scène : sol + grille */}
-        <Rover3DScene />
+        {/* Moteur physique Rapier */}
+        <Physics gravity={[0, -9.81, 0]} debug={false}>
+          {/* Scène : sol + grille + colliders */}
+          <Rover3DScene />
 
-        {/* Environnement 3D (usine/structure) */}
+          {/* Rover 3D avec physique */}
+          <Rover3DLoadedModel rover={rover} prevPositionRef={prevPositionRef} />
+        </Physics>
+
+        {/* Environnement 3D (usine/structure) — décoratif, pas de physique */}
         {showEnvironment && (
           <Float speed={0} rotationIntensity={0} floatIntensity={0}>
             <EnvironmentModel />
@@ -78,9 +85,6 @@ export function Rover3DCanvas({
 
         {/* Traînée */}
         <Rover3DTrail trail={trail} />
-
-        {/* Rover 3D — modèle téléchargé */}
-        <Rover3DLoadedModel rover={rover} prevPositionRef={prevPositionRef} />
 
         {/* Contrôles de caméra */}
         <OrbitControls

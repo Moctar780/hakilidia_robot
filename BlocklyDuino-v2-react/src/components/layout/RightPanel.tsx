@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { roverPhysics } from '../../lib/roverPhysicsStore';
 import { Code2, Camera, Smartphone, Brain, Cpu, Copy, Download, Maximize2, Minimize2, Play, Square, Save, RefreshCw, Cuboid as Cube3D } from 'lucide-react';
 import { CodeEditor } from '../workspace/CodeEditor';
 import { AiStage } from '../ai/AiStage';
@@ -196,12 +197,15 @@ function SimulatorCard() {
     }
   }, [sprite?.x, sprite?.y, runtimeStatus]);
 
-  // Met à jour le trail 3D
+  // Met à jour le trail 3D (position lue depuis Rapier)
   useEffect(() => {
-    if (rover && runtimeStatus === 'running') {
-      setRoverTrail((t) => [...t.slice(-199), { x: rover.position.x, z: rover.position.z }]);
-    }
-  }, [rover?.position.x, rover?.position.z, runtimeStatus]);
+    if (!rover || runtimeStatus !== 'running') return;
+    const unsubscribe = roverPhysics.subscribe(() => {
+      const pos = roverPhysics.getGridPosition();
+      setRoverTrail((t) => [...t.slice(-199), { x: pos.x, z: pos.z }]);
+    });
+    return unsubscribe;
+  }, [rover, runtimeStatus]);
 
   useEffect(() => {
     if (runtimeStatus !== 'running') {

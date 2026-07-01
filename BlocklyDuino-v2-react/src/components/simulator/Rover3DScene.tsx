@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { RigidBody, CuboidCollider } from '@react-three/rapier';
 
 const GRID_SIZE = 2; // 2 unités par case
 const GRID_EXTENT = 8; // -8 à +8 cases
@@ -15,13 +16,21 @@ export function Rover3DScene() {
     return lines;
   }, []);
 
+  const worldSize = GRID_EXTENT * 2 * GRID_SIZE + 4;
+
   return (
     <group>
-      {/* Sol */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
-        <planeGeometry args={[GRID_EXTENT * 2 * GRID_SIZE + 4, GRID_EXTENT * 2 * GRID_SIZE + 4]} />
-        <meshStandardMaterial color="#f0f0f0" />
-      </mesh>
+      {/* Sol avec collider fixe pour la physique */}
+      <RigidBody type="fixed" colliders={false}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+          <planeGeometry args={[worldSize, worldSize]} />
+          <meshStandardMaterial color="#f0f0f0" />
+        </mesh>
+        <CuboidCollider
+          position={[0, -0.5, 0]}
+          args={[worldSize / 2, 0.5, worldSize / 2]}
+        />
+      </RigidBody>
 
       {/* Grille */}
       {gridLines.map((line, i) => (

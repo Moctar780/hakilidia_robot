@@ -1,21 +1,18 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { type Group } from 'three';
+import { RigidBody } from '@react-three/rapier';
+import { type RigidBodyApi } from '@react-three/rapier';
 import type { Rover3D } from '../../constants';
+import { roverPhysics } from '../../lib/roverPhysicsStore';
 
 const ROVER_SCALE = 0.35;
 const ENV_SCALE = 0.9;
 
 /**
- * Charge et affiche le modèle 3D du rover téléchargé.
- * Modèle "Rover" par Quaternius — CC0 (domaine public).
- * 
- * Le rover se déplace sur la grille. rover.position.x et .z sont en "unités grille".
- * ROVER_SCALE convertit ces unités en unités Three.js pour la scène.
- *
- * ⚠️ `scene.clone()` est appelé UNE SEULE FOIS via useMemo pour éviter que
- *    le rover ne se réinitialise à (0,0,0) à chaque rendu React.
+ * Charge et affiche le modèle 3D du rover avec physique Rapier.
+ * Le corps est dynamique : il réagit aux forces, impulsions et collisions.
+ * La position/rotation lue depuis Rapier remplace l'ancien lerp manuel.
  */
 export function Rover3DLoadedModel({
   rover,
@@ -24,46 +21,63 @@ export function Rover3DLoadedModel({
   rover: Rover3D;
   prevPositionRef: React.MutableRefObject<{ x: number; z: number }>;
 }) {
-  const groupRef = useRef<Group>(null);
+  const rigidBodyRef = useRef<RigidBodyApi>(null);
   const { scene } = useGLTF('/models/rover.glb');
-
-  // Cloner le modèle UNE SEULE FOIS, pas à chaque render
   const model = useMemo(() => scene?.clone() ?? null, [scene]);
+  const initialPosition = useMemo(() => ({
+    x: rover.position.x * ROVER_SCALE,
+    z: rover.position.z * ROVER_SCALE,
+  }), []);
 
-  useFrame((_, _delta) => {
-    if (!groupRef.current) return;
+  // Exposer le ref au store pour que le runtime puisse appliquer des forces
+  useEffect(() => {
+    roverPhysics.setRef(rigidBodyRef.current);
+    return () => roverPhysics.setRef(null);
+  }, []);
 
-    // Conversion unités grille → unités scène 3D
-    const targetX = rover.position.x * ROVER_SCALE;
-    const targetZ = rover.position.z * ROVER_SCALE;
+  // Synchroniser la position initiale au premier frame
+  const initialSync = useRef(true);
+  useFrame(() => {
+    if (!rigidBodyRef.current) return;
+    if (initialSync.current) {
+      rigidBodyRef.current.setTranslation(
+        { x: initialPosition.x, y: 0.5, z: initialPosition.z },
+        true
+      );
+      initialSync.current = false;
+    }
 
-    // Interpolation lissée vers la cible
-    const lerpFactor = 0.15;
-    groupRef.current.position.x += (targetX - groupRef.current.position.x) * lerpFactor;
-    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * lerpFactor;
-    groupRef.current.position.y = 0;
-
-    // Rotation Yaw — avec gestion du passage 0↔360°
-    const targetYaw = (rover.rotation.y * Math.PI) / 180;
-    let diff = targetYaw - groupRef.current.rotation.y;
-    if (diff > Math.PI) diff -= Math.PI * 2;
-    if (diff < -Math.PI) diff += Math.PI * 2;
-    groupRef.current.rotation.y += diff * lerpFactor;
-
-    prevPositionRef.current = { x: rover.position.x, z: rover.position.z };
+    // Lire la position réelle depuis Rapier pour le trail et le store
+    const t = rigidBodyRef.current.translation();
+    const r = rigidBodyRef.current.rotation();
+    const yaw = 2 * Math.atan2(r.z, r.w);
+    const gridX = t.x / ROVER_SCALE;
+    const gridZ = t.z / ROVER_SCALE;
+    prevPositionRef.current = { x: gridX, z: gridZ };
+    roverPhysics.syncPosition(gridX, gridZ);
   });
 
   if (!model) return null;
 
   return (
-    <primitive
-      ref={groupRef}
-      object={model}
-      scale={[ROVER_SCALE, ROVER_SCALE, ROVER_SCALE]}
-      position={[0, 0, 0]}
-      castShadow
-      receiveShadow
-    />
+    <RigidBody
+      ref={rigidBodyRef}
+      type="dynamic"
+      position={[initialPosition.x, 0.5, initialPosition.z]}
+      colliders="hull"
+      mass={2}
+      linearDamping={1.5}
+      angularDamping={1.0}
+      enabledRotations={[false, true, false]}
+      canSleep={false}
+    >
+      <primitive
+        object={model}
+        scale={[ROVER_SCALE, ROVER_SCALE, ROVER_SCALE]}
+        castShadow
+        receiveShadow
+      />
+    </RigidBody>
   );
 }
 
