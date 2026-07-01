@@ -135,6 +135,10 @@ jobs:
       - name: Ajouter la cible Android à Rust
         run: rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 
+      - name: Initialiser le projet Android
+        working-directory: BlocklyDuino-v2-react
+        run: npx tauri android init
+
       - name: Build l'APK Android (Tauri)
         working-directory: BlocklyDuino-v2-react
         run: npx tauri android build --target aarch64
