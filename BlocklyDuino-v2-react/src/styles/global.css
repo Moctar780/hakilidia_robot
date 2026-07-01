@@ -136,11 +136,11 @@ body {
   background-color: var(--color-primary);
 }
 
-/* Zone d'interaction étendue invisible autour du splitter */
+/* Zone d'interaction réduite pour éviter les conflits avec les onglets */
 .split-pane__splitter::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -2px;
 }
 
 /* Panneaux : héritent de la hauteur/largeur du parent flex */

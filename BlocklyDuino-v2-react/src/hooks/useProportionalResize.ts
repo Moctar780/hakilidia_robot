@@ -67,8 +67,9 @@ export function useProportionalResize(
   }, []);
 
   /**
-   * Retourne les gestionnaires d'événements pour un séparateur.
+   * Retourne les gestionnaires d'événements pour un séparateur horizontal (inutilisé).
    * `index` est l'index du séparateur (entre panel `index` et `index + 1`).
+   * @deprecated Les splitters horizontaux ont été supprimés.
    */
   const createSplitterHandlers = useCallback(
     (index: number) => {
@@ -143,13 +144,19 @@ export function useProportionalResize(
     (index: number) => {
       let startY = 0;
       let startRatios: number[] = [];
+      let isDragging = false;
 
       const onMouseDown = (e: React.MouseEvent | MouseEvent) => {
         e.preventDefault();
         startY = e.clientY;
         startRatios = [...ratiosRef.current];
+        isDragging = false;
 
         const onMouseMove = (e2: MouseEvent) => {
+          // Ne commence le glissement qu'après un petit déplacement (évite les faux positifs)
+          if (!isDragging && Math.abs(e2.clientY - startY) < 5) return;
+          isDragging = true;
+
           const deltaPx = e2.clientY - startY;
           const deltaRatio = totalSize > 0 ? deltaPx / totalSize : 0;
 
@@ -190,8 +197,6 @@ export function useProportionalResize(
 
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
-        document.body.style.cursor = 'row-resize';
-        document.body.style.userSelect = 'none';
       };
 
       const onDoubleClick = () => {
